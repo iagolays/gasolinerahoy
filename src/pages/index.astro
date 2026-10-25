@@ -1,16 +1,239 @@
 ---
----
+// Portada: medias nacionales, las más baratas de España, buscador, histórico y provincias.
+import Base from '../layouts/Base.astro';
+import AdSlot from '../components/ads/AdSlot.astro';
+import FuelTabs from '../components/FuelTabs.astro';
+import StatsGrid from '../components/StatsGrid.astro';
+import Ranking from '../components/Ranking.astro';
+import HistoryChart from '../components/HistoryChart.astro';
+import MuniSearch from '../components/MuniSearch.astro';
+import Price from '../components/Price.astro';
+import { websiteLd, datasetLd, itemListLd } from '../components/seo/schema';
+import {
+  cheapest,
+  getMunicipalities,
+  getProvinces,
+  getStations,
+  getUpdatedAt,
+  nationalHistory,
+  nationalStats,
+  provincePath,
+  provinceStats,
+  stationPath,
+} from '../lib/data';
+import { FUEL_ORDER } from '../lib/fuels';
+import type { FuelKey } from '../lib/types';
+import { dateTime, int } from '../components/util/format';
+import { avgList, cap, fuelName, priceU, spreadSentence, theFuel, vsAvg } from '../components/util/texts';
+import { placeOf } from '../components/util/places';
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+const stations = getStations();
+const national = nationalStats();
+const fuels = FUEL_ORDER.filter((f) => national[f]);
+const updatedAt = getUpdatedAt();
+
+const rankings: Partial<Record<FuelKey, ReturnType<typeof cheapest>>> = {};
+for (const f of fuels) rankings[f] = cheapest(stations, f, 10);
+
+const provinces = getProvinces().map((p) => ({ p, stats: provinceStats(p.id) }));
+const series = Object.fromEntries(fuels.map((f) => [f, nationalHistory(f)]));
+
+// ── Texto generado ──
+const LOW_TAX = new Set(['35', '38', '51', '52']); // Canarias, Ceuta y Melilla
+function provExtremes(f: FuelKey) {
+  const withFuel = provinces.filter((x) => x.stats[f] && x.stats[f]!.count >= 3);
+  withFuel.sort((a, b) => a.stats[f]!.avg - b.stats[f]!.avg);
+  return { low: withFuel[0], high: withFuel[withFuel.length - 1], peninsular: withFuel.find((x) => !LOW_TAX.has(x.p.id) && !['07'].includes(x.p.id)) };
+}
+const cheapestLines = (['gasolina95', 'diesel'] as FuelKey[])
+  .filter((f) => rankings[f]?.[0])
+  .map((f) => {
+    const s = rankings[f]![0]!;
+    const pl = placeOf(s);
+    return { f, s, pl };
+  });
+const e95 = provExtremes('gasolina95');
+const eDiesel = provExtremes('diesel');
+
+const title = 'Precio de la gasolina hoy en España: las gasolineras más baratas';
+const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stations.length)} gasolineras de España y encuentra la más barata cerca de ti. Datos oficiales actualizados cada hora.`;
+---
+<Base
+  title={title}
+  description={description}
+  path="/"
+  fuels={fuels}
+  jsonLd={[
+    websiteLd(),
+    datasetLd(updatedAt.toISOString()),
+    itemListLd(
+      'Gasolineras más baratas de España (gasolina 95)',
+      (rankings.gasolina95 ?? []).map((s) => ({ name: `${s.brand} (${placeOf(s).municipality})`, path: stationPath(s) })),
+    ),
+  ]}
+>
+  <section class="hero">
+    <p class="kicker">Actualizado el <time datetime={updatedAt.toISOString()}>{dateTime(updatedAt)}</time></p>
+    <h1>Precio de la gasolina y el diésel hoy en España</h1>
+    <p class="lead">
+      Compara los precios de las {int(stations.length)} gasolineras de España con datos oficiales que se actualizan cada hora.
+      Busca tu municipio o mira cuáles son las más baratas cerca de ti.
+    </p>
+    <div class="hero-avgs" aria-label="Precio medio en España">
+      {(['gasolina95', 'diesel'] as FuelKey[]).filter((f) => national[f]).map((f) => (
+        <div class="hero-avg">
+          <span class="hero-avg-label">{cap(fuelName(f))} · media</span>
+          <Price value={national[f]!.avg} fuel={f} />
+        </div>
+      ))}
+    </div>
+    <div class="hero-actions">
+      <MuniSearch />
+      <div class="near-cta">
+        <a href="/cerca/" class="btn btn-primary">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+          Gasolineras cerca de mí
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <AdSlot slot="top" />
+
+  <section class="section" aria-labelledby="medias">
+    <h2 id="medias">Precio medio por carburante</h2>
+    <p class="section-sub">Media de todas las gasolineras de venta al público de España.</p>
+    <StatsGrid stats={national} />
+    <div class="prose summary">
+      <p>
+        Ahora mismo hay {int(stations.length)} gasolineras con precios publicados en España, repartidas en
+        {' '}{int(getMunicipalities().length)} municipios de las {provinces.length} provincias. De media, {avgList(national)}.
+      </p>
+      {cheapestLines.length > 0 && (
+        <p>
+          {cheapestLines.map(({ f, s, pl }, i) => (
+            <>
+              {i === 0 ? cap(theFuel(f)) : ` ${cap(theFuel(f))}`} más barat{f.startsWith('gasolina') ? 'a' : 'o'} de España está en{' '}
+              <a href={stationPath(s)}>{s.brand}</a> de <a href={pl.municipalityPath}>{pl.municipality}</a> ({pl.province}), a{' '}
+              {priceU(s.prices[f]!, f)}, {vsAvg(s.prices[f]!, national[f]!.avg, 'España')}.
+            </>
+          ))}
+        </p>
+      )}
+      {e95.low && e95.high && (
+        <p>
+          Por provincias, la gasolina 95 más barata de media está en <a href={provincePath(e95.low.p)}>{e95.low.p.name}</a>
+          {' '}({priceU(e95.low.stats.gasolina95!.avg, 'gasolina95')}) y la más cara en{' '}
+          <a href={provincePath(e95.high.p)}>{e95.high.p.name}</a> ({priceU(e95.high.stats.gasolina95!.avg, 'gasolina95')}).
+          {LOW_TAX.has(e95.low.p.id) && e95.peninsular && (
+            <>
+              {' '}Canarias, Ceuta y Melilla suelen salir más baratas porque sus impuestos sobre los carburantes son más bajos; en la
+              península la más barata es <a href={provincePath(e95.peninsular.p)}>{e95.peninsular.p.name}</a>
+              {' '}({priceU(e95.peninsular.stats.gasolina95!.avg, 'gasolina95')}).
+            </>
+          )}
+          {eDiesel.low && eDiesel.high && (
+            <>
+              {' '}En diésel, la más barata es <a href={provincePath(eDiesel.low.p)}>{eDiesel.low.p.name}</a>
+              {' '}({priceU(eDiesel.low.stats.diesel!.avg, 'diesel')}) y la más cara{' '}
+              <a href={provincePath(eDiesel.high.p)}>{eDiesel.high.p.name}</a> ({priceU(eDiesel.high.stats.diesel!.avg, 'diesel')}).
+            </>
+          )}
+        </p>
+      )}
+      <p>{spreadSentence(national, 'gasolina95', 'España')}</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="baratas">
+    <h2 id="baratas">Las 10 gasolineras más baratas de España</h2>
+    <FuelTabs fuels={fuels} sticky />
+    <Ranking rankings={rankings} reference={national} refLabel="vs. España" place="full" />
+  </section>
+
+  <AdSlot slot="inline" />
+
+  <section class="section" aria-labelledby="historico">
+    <h2 id="historico">Evolución del precio en España</h2>
+    <p class="section-sub">Precio mediano diario de todas las gasolineras. Cambia de carburante con las pestañas.</p>
+    <HistoryChart series={series} scope="en España" />
+  </section>
+
+  <section class="section" aria-labelledby="provincias" id="provincias">
+    <h2 id="provincias-t">Precios por provincia</h2>
+    <p class="section-sub">Precio medio del carburante seleccionado en cada provincia. Entra para ver todos sus municipios.</p>
+    <FuelTabs fuels={fuels} />
+    <ul class="link-list cols">
+      {provinces.map(({ p, stats }) => (
+        <li>
+          <a href={provincePath(p)}>
+            <span class="name">{p.name}</span>
+            {fuels.map((f) => (
+              <span class="meta" data-fuel-pane={f}>
+                {stats[f] ? <strong class="num">{stats[f]!.avg.toLocaleString('es-ES', { minimumFractionDigits: 3 })}</strong> : '—'}
+              </span>
+            ))}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <AdSlot slot="bottom" />
+</Base>
+
+<style is:global>
+  .hero {
+    padding: 28px 0 8px;
+  }
+  .kicker {
+    display: inline-block;
+    margin: 0 0 10px;
+    font-size: 0.85rem;
+    font-weight: 650;
+    color: var(--good);
+    background: var(--accent-soft);
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  .hero h1 {
+    max-width: 20ch;
+  }
+  .hero-avgs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    margin: 18px 0 22px;
+  }
+  .hero-avg {
+    display: flex;
+    flex-direction: column;
+  }
+  .hero-avg-label {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .hero-avg .price {
+    font-size: clamp(2.2rem, 1.6rem + 3vw, 3.2rem);
+    line-height: 1.05;
+  }
+  .hero-actions {
+    display: grid;
+    gap: 16px;
+    align-items: end;
+  }
+  @media (min-width: 760px) {
+    .hero-actions {
+      grid-template-columns: minmax(0, 520px) auto;
+      justify-content: start;
+      column-gap: 24px;
+    }
+    .near-cta {
+      padding-bottom: 2px;
+    }
+  }
+  #provincias {
+    scroll-margin-top: 80px;
+  }
+</style>

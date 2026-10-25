@@ -1,0 +1,92 @@
+---
+// Mapa de Leaflet con teselas de OpenStreetMap. Se carga solo en cliente y en diferido
+// (cuando el mapa entra en pantalla). Los marcadores muestran el precio del carburante activo.
+import { stationPath } from '../lib/data';
+import type { Prices, Station } from '../lib/types';
+import { FUEL_ORDER } from '../lib/fuels';
+
+export interface MapMarker {
+  lat: number;
+  lon: number;
+  name: string;
+  address: string;
+  href: string;
+  prices: Prices;
+  /** Marcador destacado (la gasolinera de la ficha). */
+  main?: boolean;
+}
+
+interface Props {
+  stations?: Station[];
+  markers?: MapMarker[];
+  /** Estación a destacar (su id). */
+  mainId?: string;
+  label: string;
+  height?: number;
+  /** Zoom máximo al encuadrar (para que una sola gasolinera no quede demasiado cerca). */
+  maxZoom?: number;
+}
+
+const { stations = [], markers = [], mainId, label, height = 380, maxZoom = 15 } = Astro.props;
+
+// Datos compactos: [lat, lon, nombre, dirección, url, principal(1/0), ...precios en orden FUEL_ORDER (0 = no)]
+const rows = [
+  ...markers,
+  ...stations.map<MapMarker>((s) => ({
+    lat: s.lat,
+    lon: s.lon,
+    name: s.brand,
+    address: s.address,
+    href: stationPath(s),
+    prices: s.prices,
+    main: s.id === mainId,
+  })),
+].map((m) => [
+  Math.round(m.lat * 1e5) / 1e5,
+  Math.round(m.lon * 1e5) / 1e5,
+  m.name,
+  m.address,
+  m.href,
+  m.main ? 1 : 0,
+  ...FUEL_ORDER.map((f) => m.prices[f] ?? 0),
+]);
+const json = JSON.stringify({ f: FUEL_ORDER, z: maxZoom, m: rows }).replace(/</g, '\\u003c');
+---
+<div class="map-box" style={`--map-h:${height}px`}>
+  <div class="map" data-map role="region" aria-label={label}>
+    <p class="map-placeholder">Cargando mapa…</p>
+    <script type="application/json" is:inline set:html={json} />
+  </div>
+  <noscript><p class="small muted">El mapa necesita JavaScript.</p></noscript>
+</div>
+
+<script>
+  import { initMaps } from './scripts/map';
+  initMaps();
+</script>
+
+<style>
+  .map-box {
+    isolation: isolate;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    box-shadow: var(--shadow);
+  }
+  .map {
+    height: var(--map-h);
+    max-height: 70vh;
+    min-height: 260px;
+    position: relative;
+  }
+  .map-placeholder {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+</style>

@@ -1,0 +1,71 @@
+---
+// Metadatos de cada página: title, description, canonical, Open Graph, Twitter,
+// JSON-LD y (si hay cliente configurado) el script de AdSense.
+// Va dentro del <head> del layout Base.
+import { existsSync } from 'node:fs';
+import { SITE } from '../../site.config';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Ruta absoluta desde la raíz, p. ej. "/provincia/madrid/". */
+  path: string;
+  jsonLd?: object | object[];
+  noindex?: boolean;
+  ogType?: string;
+}
+
+const { title, description, path, jsonLd, noindex = false, ogType = 'website' } = Astro.props;
+
+// Normaliza la ruta a la forma canónica: empieza y acaba en "/" (trailingSlash: 'always').
+function canonicalPath(p: string): string {
+  let out = p.startsWith('/') ? p : `/${p}`;
+  // Las rutas con extensión (p. ej. /404.html) no llevan barra final.
+  if (!out.endsWith('/') && !/\.[a-z0-9]+$/i.test(out)) out += '/';
+  return out;
+}
+
+const canonical = new URL(canonicalPath(path), SITE.url).href;
+// Las páginas de error (/404.html) no llevan canonical: no son una URL real del sitio.
+const isErrorPage = /\.html$/i.test(path);
+// Evita "RepostaBarato | RepostaBarato" en la portada.
+const fullTitle = title.includes(SITE.name) ? title : `${title} | ${SITE.name}`;
+// Imagen para redes (1200×630). Solo se enlaza si existe public/og.png.
+const ogImage = existsSync('public/og.png') ? new URL('/og.png', SITE.url).href : null;
+
+const ldList = jsonLd === undefined ? [] : Array.isArray(jsonLd) ? jsonLd : [jsonLd];
+// JSON seguro dentro de <script>: escapa "<" para que no se pueda cerrar la etiqueta.
+const ldJson = (o: object) => JSON.stringify(o).replace(/</g, '\\u003c');
+
+const adsenseClient: string = SITE.adsenseClient;
+---
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+{!isErrorPage && <link rel="canonical" href={canonical} />}
+<meta name="robots" content={noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large'} />
+
+<meta property="og:site_name" content={SITE.name} />
+<meta property="og:locale" content={SITE.lang.replace('-', '_')} />
+<meta property="og:type" content={ogType} />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+{ogImage && <meta property="og:image" content={ogImage} />}
+<meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
+<meta name="twitter:title" content={fullTitle} />
+<meta name="twitter:description" content={description} />
+
+{ldList.map((o) => <script type="application/ld+json" is:inline set:html={ldJson(o)} />)}
+
+{adsenseClient && (
+  <>
+    <meta name="google-adsense-account" content={adsenseClient} />
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin />
+    <script
+      async
+      is:inline
+      src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClient}`}
+      crossorigin="anonymous"
+    ></script>
+  </>
+)}

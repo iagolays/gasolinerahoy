@@ -1,0 +1,100 @@
+---
+// Página "Acerca de": qué es el sitio, de dónde salen los datos y cómo se calculan las cifras.
+import Base from '../layouts/Base.astro';
+import { SITE } from '../site.config';
+import { datasetLd } from '../components/seo/schema';
+import { getStations, getMunicipalities, getProvinces, getUpdatedAt } from '../lib/data';
+import { FUELS, FUEL_ORDER } from '../lib/fuels';
+import { dateTime, int } from '../components/util/format';
+
+const updatedAt = getUpdatedAt();
+const nEstaciones = getStations().length;
+const nMunicipios = getMunicipalities().length;
+const nProvincias = getProvinces().length;
+---
+<Base
+  title={`Acerca de ${SITE.name}`}
+  description={`Qué es ${SITE.name}, de dónde salen los precios de las ${int(nEstaciones)} gasolineras de España, cada cuánto se actualizan y cómo se calculan las medias.`}
+  path="/acerca/"
+  ogType="article"
+  jsonLd={datasetLd(updatedAt.toISOString())}
+  breadcrumbs={[{ name: 'Acerca de', path: '/acerca/' }]}
+>
+  <article class="prose legal">
+    <h1>Acerca de {SITE.name}</h1>
+    <p class="lead">
+      {SITE.name} es una web independiente para encontrar la gasolinera más barata cerca de ti. Reúne los precios de
+      {' '}<strong>{int(nEstaciones)} estaciones de servicio</strong> de {int(nMunicipios)} municipios de las
+      {' '}{nProvincias} provincias, ciudades autónomas e islas de España.
+    </p>
+
+    <p class="notice">
+      <strong>{SITE.name} no es una web oficial</strong> ni tiene relación con el Ministerio ni con ninguna
+      administración pública o marca de carburantes. <strong>Los precios son orientativos</strong>: el que vale es
+      el del surtidor.
+    </p>
+
+    <h2>De dónde salen los datos</h2>
+    <p>
+      <strong>Origen de los datos: Ministerio para la Transición Ecológica y el Reto Demográfico</strong>, a través
+      del servicio público de precios de carburantes del
+      {' '}<a href={SITE.dataSource.url} rel="noopener" target="_blank">Geoportal de Hidrocarburos</a>. Las estaciones
+      de servicio están obligadas a comunicar sus precios al Ministerio, que los publica como datos abiertos. Los
+      reutilizamos conforme a la Ley 37/2007 sobre reutilización de la información del sector público y a las
+      condiciones generales de reutilización del Ministerio, sin que este participe, patrocine ni respalde este sitio.
+    </p>
+    <p>
+      Última actualización de los datos: <time datetime={updatedAt.toISOString()}><strong>{dateTime(updatedAt)}</strong></time>.
+      Los descargamos y regeneramos la web aproximadamente <strong>cada hora</strong>. Solo se muestran las
+      estaciones de venta al público (no las de venta restringida a cooperativas o flotas).
+    </p>
+
+    <h2>Qué carburantes mostramos</h2>
+    <ul>
+      {FUEL_ORDER.map((k) => <li>{FUELS[k].label} ({FUELS[k].unit})</li>)}
+    </ul>
+
+    <h2>Cómo calculamos las cifras</h2>
+    <ul>
+      <li><strong>Media</strong>: promedio de los precios de todas las gasolineras de la zona que venden ese carburante.</li>
+      <li><strong>Mediana</strong>: el precio que queda en medio si se ordenan todos; se ve menos afectada por precios extremos.</li>
+      <li><strong>Diferencias en %</strong>: comparan el precio de una gasolinera con la media de su municipio o provincia.</li>
+      <li><strong>Histórico</strong>: guardamos cada día la mediana nacional y la de cada provincia para dibujar la evolución.</li>
+    </ul>
+    <p>
+      Estas cifras son elaboraciones propias de {SITE.name} a partir de los datos oficiales, no estadísticas del
+      Ministerio. Los nombres de marcas, municipios y direcciones se normalizan (mayúsculas, tildes, artículos) para
+      que se lean mejor, sin cambiar su significado.
+    </p>
+
+    <h2>Cómo se financia</h2>
+    <p>
+      La web es gratuita y se mantiene con publicidad de Google AdSense. Los anuncios están claramente marcados y no
+      influyen en el orden de las gasolineras, que siempre es por precio o distancia. Consulta la
+      {' '}<a href="/privacidad/">política de privacidad</a> y la <a href="/cookies/">política de cookies</a>.
+    </p>
+
+    <h2>¿Has visto un error?</h2>
+    <p>
+      Si un precio no coincide con el del surtidor, es probable que la estación no lo haya comunicado aún al
+      Ministerio: los datos de origen son responsabilidad de cada gasolinera. Si el error es nuestro (un cálculo, un
+      nombre mal escrito, un enlace roto), escríbenos a <a href="mailto:[EMAIL]">[EMAIL]</a>.
+    </p>
+    <p class="small muted">
+      Mapas: © colaboradores de <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">OpenStreetMap</a>.
+      Más información legal en el <a href="/aviso-legal/">aviso legal</a>.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .legal h2 {
+    margin-top: 1.6em;
+  }
+  .legal ul {
+    padding-left: 1.2em;
+  }
+  .legal li {
+    margin-bottom: 0.4em;
+  }
+</style>

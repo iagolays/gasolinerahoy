@@ -1,0 +1,210 @@
+---
+// Tabla de gasolineras de un municipio, ordenable por cualquier carburante.
+// Sin JS sale ordenada por el carburante por defecto; con JS se reordena al pulsar
+// una cabecera o al cambiar de carburante en las pestañas.
+import { FUELS, FUEL_ORDER } from '../lib/fuels';
+import { stationPath } from '../lib/data';
+import type { FuelKey, Station, StatsByFuel } from '../lib/types';
+import { price } from './util/format';
+
+interface Props {
+  stations: Station[];
+  stats: StatsByFuel;
+  defaultFuel: FuelKey;
+  caption: string;
+}
+const { stations, stats, defaultFuel, caption } = Astro.props;
+const fuels = FUEL_ORDER.filter((f) => stats[f]);
+
+const sorted = [...stations].sort((a, b) => {
+  const pa = a.prices[defaultFuel] ?? Infinity;
+  const pb = b.prices[defaultFuel] ?? Infinity;
+  return pa - pb || a.brand.localeCompare(b.brand, 'es');
+});
+
+/** Clase de la celda: la más barata en verde, las caras (por encima de la media + 2 %) en naranja. */
+function cellClass(f: FuelKey, v: number): string {
+  const s = stats[f]!;
+  if (s.count > 1 && v === s.min) return 'best';
+  if (s.count > 2 && v > s.avg * 1.02) return 'high';
+  return '';
+}
+---
+<div class="table-wrap" data-sort-table>
+  <table class="st-table">
+    <caption class="visually-hidden">{caption}. Pulsa una cabecera para ordenar.</caption>
+    <thead>
+      <tr>
+        <th scope="col" class="col-name" aria-sort="none">
+          <button type="button" data-sort-key="name">Gasolinera</button>
+        </th>
+        {fuels.map((f) => (
+          <th
+            scope="col"
+            class="col-price"
+            data-fuel-col={f}
+            aria-sort={f === defaultFuel ? 'ascending' : 'none'}
+          >
+            <button type="button" data-sort-key={f} title={`Ordenar por ${FUELS[f].label}`}>
+              {FUELS[f].short}
+              <span class="unit">{FUELS[f].unit}</span>
+            </button>
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {sorted.map((s) => (
+        <tr data-name={s.brand.toLowerCase()}>
+          <th scope="row" class="col-name">
+            <a href={stationPath(s)}>{s.brand}</a>
+            <span class="addr">
+              {s.address}
+              {s.is24h && <span class="badge accent">24 h</span>}
+            </span>
+          </th>
+          {fuels.map((f) => {
+            const v = s.prices[f];
+            return v === undefined ? (
+              <td class="col-price empty" data-fuel-col={f} data-v="">
+                <span aria-label="No disponible">—</span>
+              </td>
+            ) : (
+              <td class:list={['col-price', cellClass(f, v)]} data-fuel-col={f} data-v={v}>
+                {price(v)}
+              </td>
+            );
+          })}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  import { initSortTables } from './scripts/table';
+  initSortTables();
+</script>
+
+<style is:global>
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .st-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+  }
+  .st-table th,
+  .st-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: middle;
+  }
+  .st-table tbody tr:last-child > * {
+    border-bottom: 0;
+  }
+  .st-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--surface-2);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    padding: 0;
+  }
+  .st-table thead button {
+    all: unset;
+    box-sizing: border-box;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    width: 100%;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-weight: 750;
+    color: var(--ink);
+  }
+  .st-table thead button:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: -3px;
+  }
+  .st-table thead .col-price button {
+    justify-content: flex-end;
+  }
+  .st-table thead button::after {
+    content: '↕';
+    opacity: 0.35;
+    font-size: 0.85em;
+  }
+  .st-table th[aria-sort='ascending'] button::after {
+    content: '↑';
+    opacity: 1;
+  }
+  .st-table th[aria-sort='descending'] button::after {
+    content: '↓';
+    opacity: 1;
+  }
+  .st-table thead .unit {
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 0.8em;
+  }
+  .st-table .col-name {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+    min-width: 170px;
+    max-width: 280px;
+    font-weight: 400;
+  }
+  .st-table thead .col-name {
+    background: var(--surface-2);
+    z-index: 2;
+  }
+  .st-table .col-name a {
+    font-weight: 700;
+    display: block;
+  }
+  .st-table .addr {
+    display: block;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+  .st-table .addr .badge {
+    margin-left: 6px;
+  }
+  .st-table td.col-price {
+    text-align: right;
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+    font-weight: 750;
+    font-size: 1.08rem;
+    white-space: nowrap;
+  }
+  .st-table td.best {
+    color: var(--good);
+  }
+  .st-table td.best::before {
+    content: '★ ';
+    font-size: 0.75em;
+  }
+  .st-table td.high {
+    color: var(--bad);
+  }
+  .st-table td.empty {
+    color: var(--muted);
+    font-weight: 400;
+  }
+  @media (min-width: 720px) {
+    .st-table .col-name {
+      max-width: 340px;
+    }
+  }
+</style>

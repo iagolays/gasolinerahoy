@@ -1,0 +1,164 @@
+---
+// Política de privacidad (RGPD y LOPDGDD). Rellenar los datos entre corchetes.
+import Base from '../layouts/Base.astro';
+import { SITE } from '../site.config';
+
+const REVISADO = '26 de octubre de 2026';
+---
+<Base
+  title="Política de privacidad"
+  description={`Cómo trata ${SITE.name} los datos personales: publicidad de Google AdSense, alojamiento, mapas y contacto.`}
+  path="/privacidad/"
+  noindex
+  breadcrumbs={[{ name: 'Privacidad', path: '/privacidad/' }]}
+>
+  <article class="prose legal">
+    <h1>Política de privacidad</h1>
+    <p class="muted small">Última revisión: {REVISADO}.</p>
+
+    <p>
+      En {SITE.name} no hay registro de usuarios, formularios ni comentarios, y no pedimos datos personales para
+      usar el sitio. Aun así, al visitarlo se tratan algunos datos (como la dirección IP o los identificadores de
+      cookies) por parte de los proveedores que se describen abajo. Esta política explica cuáles, para qué y con qué
+      base legal, conforme al Reglamento (UE) 2016/679 (RGPD) y a la Ley Orgánica 3/2018 (LOPDGDD).
+    </p>
+
+    <h2>1. Responsable del tratamiento</h2>
+    <ul>
+      <li>Responsable: <strong>[NOMBRE]</strong></li>
+      <li>NIF: [NIF]</li>
+      <li>Contacto: <a href="mailto:[EMAIL]">[EMAIL]</a></li>
+    </ul>
+
+    <h2>2. Qué datos se tratan, para qué y con qué base legal</h2>
+
+    <h3>2.1. Publicidad (Google AdSense)</h3>
+    <p>
+      El sitio se financia con anuncios de <strong>Google AdSense</strong>, servicio de Google Ireland Limited
+      (Gordon House, Barrow Street, Dublín 4, Irlanda). Google y otros proveedores de terceros utilizan cookies y
+      tecnologías similares para mostrar anuncios basados en las visitas anteriores del usuario a este y a otros
+      sitios web, medir su rendimiento y prevenir el fraude. El uso de cookies de publicidad permite a Google y a
+      sus socios mostrar anuncios basados en las visitas a este sitio y a otros sitios de Internet.
+    </p>
+    <ul>
+      <li>
+        <strong>Base legal:</strong> tu <strong>consentimiento</strong> (art. 6.1.a RGPD y art. 22.2 LSSI-CE), que
+        se recoge con la plataforma de gestión del consentimiento (CMP) de Google, certificada para el Marco de
+        Transparencia y Consentimiento (TCF) de IAB Europe. Si no consientes, Google puede mostrar anuncios no
+        personalizados o limitados, que usan cookies solo para fines como la limitación de frecuencia, la
+        prevención del fraude y la medición agregada, en los términos que se indican en el aviso de consentimiento.
+      </li>
+      <li>
+        <strong>Proveedores:</strong> en el aviso de consentimiento («Gestionar opciones») se muestra la lista
+        completa de proveedores publicitarios y sus finalidades; puedes aceptarlos o rechazarlos uno a uno.
+        Google actúa como responsable independiente de los datos que trata para sus propios fines.
+      </li>
+      <li>
+        <strong>Cómo funciona y cómo desactivarlo:</strong> información en
+        <a href="https://policies.google.com/technologies/partner-sites?hl=es" rel="noopener" target="_blank">Cómo utiliza Google los datos cuando usas sitios o aplicaciones de sus partners</a>.
+        Puedes desactivar la publicidad personalizada de Google en
+        <a href="https://adssettings.google.com/" rel="noopener" target="_blank">Configuración de anuncios</a>
+        y la de otros proveedores en <a href="https://www.youronlinechoices.com/es/" rel="noopener" target="_blank">youronlinechoices.com</a>
+        o <a href="https://www.aboutads.info/choices/" rel="noopener" target="_blank">aboutads.info</a>.
+      </li>
+      <li>
+        <strong>Retirar el consentimiento:</strong> en cualquier momento desde el enlace «Privacidad y cookies» de la
+        <a href="/cookies/">política de cookies</a> o el botón de privacidad que aparece en el sitio.
+      </li>
+    </ul>
+
+    <h3>2.2. Alojamiento y seguridad (Cloudflare)</h3>
+    <p>
+      El sitio está alojado en <strong>Cloudflare Pages</strong> (Cloudflare, Inc.). Para servir las páginas y
+      protegerlas frente a ataques, Cloudflare trata la dirección IP, el navegador y la página solicitada, y puede
+      guardar registros técnicos durante un tiempo limitado. Base legal: <strong>interés legítimo</strong> en
+      prestar el servicio de forma segura (art. 6.1.f RGPD). Cloudflare actúa como encargado del tratamiento.
+      Más información en su <a href="https://www.cloudflare.com/es-es/privacypolicy/" rel="noopener" target="_blank">política de privacidad</a>.
+    </p>
+
+    <h3>2.3. Mapas (OpenStreetMap)</h3>
+    <p>
+      Los mapas se dibujan con imágenes (teselas) descargadas de los servidores de la
+      <a href="https://osmfoundation.org/wiki/Privacy_Policy" rel="noopener" target="_blank">OpenStreetMap Foundation</a>,
+      que recibe tu dirección IP y la página de origen al cargarlas. Base legal: interés legítimo en mostrar la
+      ubicación de las gasolineras. Las teselas solo se piden en las páginas que tienen mapa.
+    </p>
+
+    <h3>2.4. Tu ubicación («Cerca de mí»)</h3>
+    <p>
+      Si usas la función «Cerca de mí», el navegador te pedirá permiso para conocer tu ubicación. Ese dato se usa
+      <strong>solo en tu dispositivo</strong> para ordenar las gasolineras por distancia: no se envía a nuestros
+      servidores ni se guarda. Base legal: tu consentimiento, que das y retiras desde el propio navegador.
+    </p>
+
+    <h3>2.5. Contacto por correo electrónico</h3>
+    <p>
+      Si nos escribes a [EMAIL], trataremos tu dirección y el contenido del mensaje solo para responderte.
+      Base legal: tu consentimiento y nuestro interés legítimo en atender la consulta. Los mensajes se conservan
+      el tiempo necesario para atenderla y, después, durante los plazos legales de prescripción.
+    </p>
+
+    <h3>2.6. Preferencias guardadas en tu navegador</h3>
+    <p>
+      El sitio guarda en el almacenamiento local de tu navegador el carburante que has elegido, para mostrártelo
+      la próxima vez. Ese dato no sale de tu dispositivo. Más detalles en la <a href="/cookies/">política de cookies</a>.
+    </p>
+
+    <p>
+      {SITE.name} <strong>no usa herramientas de analítica</strong> propias, no elabora perfiles y no toma
+      decisiones automatizadas sobre los usuarios.
+    </p>
+
+    <h2>3. Destinatarios y transferencias internacionales</h2>
+    <p>
+      No cedemos datos a terceros salvo obligación legal. Los proveedores citados (Google, Cloudflare y la
+      OpenStreetMap Foundation) pueden tratar datos fuera del Espacio Económico Europeo, en particular en Estados
+      Unidos. Google y Cloudflare están adheridos al Marco de Privacidad de Datos UE-EE. UU. (decisión de
+      adecuación de la Comisión Europea de 10 de julio de 2023) y, además, usan cláusulas contractuales tipo.
+    </p>
+
+    <h2>4. Plazos de conservación</h2>
+    <p>
+      {SITE.name} no conserva datos personales propios aparte de los correos recibidos. Los plazos de conservación
+      de cookies y registros de los proveedores se indican en la <a href="/cookies/">política de cookies</a> y en
+      las políticas de privacidad de cada uno.
+    </p>
+
+    <h2>5. Tus derechos</h2>
+    <p>
+      Puedes ejercer tus derechos de acceso, rectificación, supresión, oposición, limitación del tratamiento y
+      portabilidad, así como retirar el consentimiento en cualquier momento, escribiendo a
+      <a href="mailto:[EMAIL]">[EMAIL]</a>. Para los datos que tratan Google y Cloudflare como responsables, puedes
+      dirigirte también directamente a ellos.
+    </p>
+    <p>
+      Si consideras que no hemos atendido correctamente tu solicitud, puedes presentar una reclamación ante la
+      <a href="https://www.aepd.es/" rel="noopener" target="_blank">Agencia Española de Protección de Datos</a>.
+    </p>
+
+    <h2>6. Menores de edad</h2>
+    <p>
+      El sitio no está dirigido a menores de 14 años y no recoge conscientemente datos de menores.
+    </p>
+
+    <h2>7. Cambios en esta política</h2>
+    <p>
+      Si cambian los proveedores o los tratamientos, actualizaremos esta página e indicaremos la fecha de revisión.
+    </p>
+  </article>
+</Base>
+
+<style>
+  .legal h2 {
+    margin-top: 1.6em;
+  }
+  .legal h3 {
+    margin-top: 1.2em;
+  }
+  .legal ul {
+    padding-left: 1.2em;
+  }
+  .legal li {
+    margin-bottom: 0.4em;
+  }
+</style>

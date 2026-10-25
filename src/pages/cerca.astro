@@ -1,0 +1,174 @@
+---
+// Gasolineras cerca de mí: geolocalización en cliente sobre /data/stations.min.json.
+import Base from '../layouts/Base.astro';
+import AdSlot from '../components/ads/AdSlot.astro';
+import FuelTabs from '../components/FuelTabs.astro';
+import MuniSearch from '../components/MuniSearch.astro';
+import StatsGrid from '../components/StatsGrid.astro';
+import { getStations, nationalStats } from '../lib/data';
+import { FUEL_ORDER } from '../lib/fuels';
+import { int } from '../components/util/format';
+import { avgList } from '../components/util/texts';
+
+const national = nationalStats();
+const fuels = FUEL_ORDER.filter((f) => national[f]);
+const total = getStations().length;
+---
+<Base
+  title="Gasolineras cerca de mí: las más baratas a tu alrededor"
+  description={`Encuentra la gasolinera más barata cerca de ti entre ${int(total)} gasolineras de España. Usa tu ubicación y compara precios de gasolina, diésel, GLP y más, actualizados cada hora.`}
+  path="/cerca/"
+  fuels={fuels}
+  breadcrumbs={[{ name: 'Cerca de mí', path: '/cerca/' }]}
+>
+  <header class="page-head">
+    <h1>Gasolineras baratas cerca de mí</h1>
+    <p class="lead">
+      Pulsa el botón y te mostramos las gasolineras más baratas a tu alrededor, ordenadas por precio. Tu ubicación no sale de tu
+      navegador: no la guardamos ni la enviamos a ningún sitio.
+    </p>
+  </header>
+
+  <section class="near" data-near aria-labelledby="buscar">
+    <h2 id="buscar" class="visually-hidden">Buscar gasolineras cercanas</h2>
+    <div class="near-controls card">
+      <button type="button" class="btn btn-primary locate" data-locate>
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+        Usar mi ubicación
+      </button>
+      <div class="selects">
+        <label>
+          <span>Radio</span>
+          <select data-radius>
+            <option value="2">2 km</option>
+            <option value="5" selected>5 km</option>
+            <option value="10">10 km</option>
+            <option value="25">25 km</option>
+            <option value="50">50 km</option>
+          </select>
+        </label>
+        <label>
+          <span>Ordenar por</span>
+          <select data-sort>
+            <option value="price" selected>Precio</option>
+            <option value="distance">Distancia</option>
+          </select>
+        </label>
+      </div>
+      <FuelTabs fuels={fuels} />
+    </div>
+    <p class="status" data-status aria-live="polite"></p>
+    <noscript><p class="notice">Esta búsqueda necesita JavaScript. Puedes buscar tu provincia en la <a href="/#provincias">portada</a>.</p></noscript>
+    <div class="near-grid">
+      <ol class="ranking" data-results aria-label="Gasolineras cercanas"></ol>
+      <div class="map-box" hidden>
+        <div class="map" data-near-map role="region" aria-label="Mapa de gasolineras cercanas"></div>
+      </div>
+    </div>
+  </section>
+
+  <AdSlot slot="inline" />
+
+  <section class="section" aria-labelledby="sin-ubicacion">
+    <h2 id="sin-ubicacion">¿Prefieres no compartir tu ubicación?</h2>
+    <p class="section-sub">Busca tu municipio y verás todas sus gasolineras ordenadas por precio.</p>
+    <MuniSearch id="buscar-municipio-cerca" />
+  </section>
+
+  <section class="section" aria-labelledby="referencia">
+    <h2 id="referencia">Precios de referencia en España</h2>
+    <p class="section-sub">Para saber si una gasolinera está bien de precio: hoy, de media, {avgList(national)}.</p>
+    <StatsGrid stats={national} />
+    <div class="prose summary">
+      <p>
+        Repostar en la gasolinera más barata de tu zona en lugar de en la más cara puede suponer varios euros por depósito. Los precios
+        cambian a menudo, a veces varias veces al día, así que conviene mirarlos justo antes de salir. Las gasolineras automáticas
+        (sin personal) y las de supermercados suelen estar entre las más baratas.
+      </p>
+    </div>
+  </section>
+
+  <AdSlot slot="bottom" />
+</Base>
+
+<script>
+  import { initNear } from '../components/scripts/near';
+  const root = document.querySelector<HTMLElement>('[data-near]');
+  if (root) initNear(root);
+</script>
+
+<style>
+  .near-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 14px 20px;
+    margin-top: 16px;
+  }
+  .near-controls :global(.fuel-tabs) {
+    margin: 0;
+  }
+  .locate {
+    font-size: 1.05rem;
+    padding: 12px 22px;
+    min-height: 50px;
+  }
+  .selects {
+    display: flex;
+    gap: 12px;
+  }
+  .selects label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  select {
+    font: inherit;
+    font-size: 1rem;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    min-height: 44px;
+  }
+  .status {
+    margin: 14px 2px;
+    color: var(--muted);
+    min-height: 1.5em;
+  }
+  .near-grid {
+    display: grid;
+    gap: 14px;
+  }
+  @media (min-width: 960px) {
+    .near-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: start;
+    }
+    .map-box {
+      position: sticky;
+      top: 76px;
+    }
+  }
+  .map-box {
+    isolation: isolate;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .map-box[hidden] {
+    display: none;
+  }
+  .map {
+    height: 460px;
+    max-height: 70vh;
+  }
+  .ranking:empty {
+    display: none;
+  }
+</style>

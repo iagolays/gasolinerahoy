@@ -1,0 +1,177 @@
+---
+// Página de provincia: estadísticas, ranking de las más baratas, municipios e histórico.
+import type { GetStaticPaths } from 'astro';
+import Base from '../../../layouts/Base.astro';
+import AdSlot from '../../../components/ads/AdSlot.astro';
+import FuelTabs from '../../../components/FuelTabs.astro';
+import StatsGrid from '../../../components/StatsGrid.astro';
+import Ranking from '../../../components/Ranking.astro';
+import HistoryChart from '../../../components/HistoryChart.astro';
+import { itemListLd } from '../../../components/seo/schema';
+import {
+  cheapest,
+  getMunicipalitiesOf,
+  getProvinces,
+  getStationsOfProvince,
+  municipalityPath,
+  municipalityStats,
+  nationalStats,
+  provincePath,
+  provinceHistory,
+  provinceStats,
+  stationPath,
+} from '../../../lib/data';
+import { FUEL_ORDER } from '../../../lib/fuels';
+import type { FuelKey, Province } from '../../../lib/types';
+import { int, plural, price } from '../../../components/util/format';
+import { avgList, cap, ord, priceU, spreadSentence, theFuel, vsAvg, fuelName } from '../../../components/util/texts';
+import { placeOf } from '../../../components/util/places';
+
+export const getStaticPaths = (() => {
+  const provinces = getProvinces();
+  // Puesto de cada provincia (1 = la más barata) por carburante, calculado una sola vez.
+  const ranks = new Map<string, Partial<Record<FuelKey, number>>>();
+  for (const f of FUEL_ORDER) {
+    const list = provinces
+      .filter((p) => provinceStats(p.id)[f])
+      .sort((a, b) => provinceStats(a.id)[f]!.avg - provinceStats(b.id)[f]!.avg);
+    list.forEach((p, i) => {
+      const r = ranks.get(p.id) ?? {};
+      r[f] = i + 1;
+      ranks.set(p.id, r);
+    });
+  }
+  const totals: Partial<Record<FuelKey, number>> = {};
+  for (const f of FUEL_ORDER) totals[f] = provinces.filter((p) => provinceStats(p.id)[f]).length;
+  return provinces.map((province) => ({
+    params: { prov: province.slug },
+    props: { province, ranks: ranks.get(province.id) ?? {}, totals },
+  }));
+}) satisfies GetStaticPaths;
+
+interface Props {
+  province: Province;
+  ranks: Partial<Record<FuelKey, number>>;
+  totals: Partial<Record<FuelKey, number>>;
+}
+const { province, ranks, totals } = Astro.props;
+const name = province.name;
+const stations = getStationsOfProvince(province.id);
+const stats = provinceStats(province.id);
+const national = nationalStats();
+const fuels = FUEL_ORDER.filter((f) => stats[f]);
+const munis = getMunicipalitiesOf(province.id).map((m) => ({ m, stats: municipalityStats(m.id), n: m.stationIds.length }));
+
+const rankings: Partial<Record<FuelKey, ReturnType<typeof cheapest>>> = {};
+for (const f of fuels) rankings[f] = cheapest(stations, f, 10);
+const series = Object.fromEntries(fuels.map((f) => [f, provinceHistory(province.id, f)]));
+
+// ── Texto generado ──
+const main = (['gasolina95', 'diesel'] as FuelKey[]).filter((f) => stats[f]);
+const open24 = stations.filter((s) => s.is24h).length;
+function muniExtremes(f: FuelKey) {
+  const list = munis.filter((x) => x.stats[f]).sort((a, b) => a.stats[f]!.avg - b.stats[f]!.avg);
+  return list.length >= 3 ? { low: list[0]!, high: list[list.length - 1]! } : null;
+}
+const mx = main[0] ? muniExtremes(main[0]) : null;
+const topMuni = [...munis].sort((a, b) => b.n - a.n)[0];
+
+const title = `Precio de la gasolina en ${name} hoy: gasolineras más baratas`;
+const description = `Gasolineras más baratas de ${name}: ${avgList(stats)} de media. Compara ${int(stations.length)} gasolineras en ${munis.length} municipios con datos oficiales actualizados cada hora.`;
+const path = provincePath(province);
+---
+<Base
+  title={title}
+  description={description}
+  path={path}
+  fuels={fuels}
+  breadcrumbs={[{ name, path }]}
+  jsonLd={itemListLd(
+    `Gasolineras más baratas de ${name}`,
+    (rankings[fuels[0]!] ?? []).map((s) => ({ name: `${s.brand} (${placeOf(s).municipality})`, path: stationPath(s) })),
+  )}
+>
+  <header class="page-head">
+    <h1>Precio de la gasolina en {name} hoy</h1>
+    <p class="lead">
+      {plural(stations.length, 'gasolinera', 'gasolineras')} en {plural(munis.length, 'municipio', 'municipios')}.
+      Consulta las más baratas de la provincia y entra en tu municipio para ver todas las de tu zona.
+    </p>
+  </header>
+
+  <AdSlot slot="top" />
+
+  <section class="section" aria-labelledby="medias">
+    <h2 id="medias">Precio medio en {name}</h2>
+    <StatsGrid stats={stats} reference={national} refLabel="vs. España" />
+    <div class="prose summary">
+      <p>
+        En la provincia de {name} hay {plural(stations.length, 'gasolinera', 'gasolineras')} con precios publicados,
+        repartidas en {plural(munis.length, 'municipio', 'municipios')}{topMuni && topMuni.n > 1 && <> ; el que más tiene es <a href={municipalityPath(topMuni.m)}>{topMuni.m.name}</a>, con {int(topMuni.n)}</>}.
+        {main.length > 0 && <> De media, {avgList(stats)}.</>}
+        {main.map((f) => (
+          <> {cap(theFuel(f))} está {vsAvg(stats[f]!.avg, national[f]!.avg, 'España')}.</>
+        ))}
+      </p>
+      {main.some((f) => ranks[f]) && (
+        <p>
+          {name} es la {main.filter((f) => ranks[f]).map((f, i) => (
+            <>{i > 0 ? <> y la {ord(ranks[f]!)} en {fuelName(f)}</> : <>{ord(ranks[f]!)} provincia más barata en {fuelName(f)}</>}</>
+          ))} de las {totals[main[0]!]} provincias.
+          {main.map((f) => {
+            const s = rankings[f]?.[0];
+            if (!s) return null;
+            const pl = placeOf(s);
+            return (
+              <> {cap(theFuel(f))} más barat{f.startsWith('gasolina') ? 'a' : 'o'} está en <a href={stationPath(s)}>{s.brand}</a> de{' '}
+                <a href={pl.municipalityPath}>{pl.municipality}</a>, a {priceU(s.prices[f]!, f)}.</>
+            );
+          })}
+        </p>
+      )}
+      {mx && main[0] && (
+        <p>
+          Por municipios, la {fuelName(main[0])} más barata de media está en <a href={municipalityPath(mx.low.m)}>{mx.low.m.name}</a>
+          {' '}({priceU(mx.low.stats[main[0]]!.avg, main[0])}) y la más cara en <a href={municipalityPath(mx.high.m)}>{mx.high.m.name}</a>
+          {' '}({priceU(mx.high.stats[main[0]]!.avg, main[0])}). {spreadSentence(stats, main[0], 'la provincia')}
+        </p>
+      )}
+      {open24 > 0 && (
+        <p>{open24 === 1 ? 'Una gasolinera abre' : `${int(open24)} gasolineras abren`} las 24 horas en la provincia.</p>
+      )}
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="baratas">
+    <h2 id="baratas">Las gasolineras más baratas de {name}</h2>
+    <FuelTabs fuels={fuels} sticky />
+    <Ranking rankings={rankings} reference={stats} refLabel={`vs. ${name}`} place="municipality" />
+  </section>
+
+  <AdSlot slot="inline" />
+
+  <section class="section" aria-labelledby="municipios">
+    <h2 id="municipios">Municipios de {name}</h2>
+    <p class="section-sub">Precio medio del carburante seleccionado y número de gasolineras.</p>
+    <FuelTabs fuels={fuels} />
+    <ul class="link-list cols">
+      {munis.map(({ m, stats: ms, n }) => (
+        <li>
+          <a href={municipalityPath(m)}>
+            <span class="name">{m.name} <span class="muted small">({int(n)})</span></span>
+            {fuels.map((f) => (
+              <span class="meta" data-fuel-pane={f}>{ms[f] ? <strong>{price(ms[f]!.avg)}</strong> : '—'}</span>
+            ))}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="historico">
+    <h2 id="historico">Evolución del precio en {name}</h2>
+    <HistoryChart series={series} scope={`en ${name}`} />
+  </section>
+
+  <AdSlot slot="bottom" />
+</Base>

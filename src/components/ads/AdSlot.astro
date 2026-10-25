@@ -1,0 +1,72 @@
+---
+// Hueco de anuncio de AdSense (bloque adaptable).
+// - Sin SITE.adsenseClient no pinta nada (ni ocupa espacio).
+// - Con cliente, reserva una altura mínima para evitar CLS cuando carga el anuncio.
+// La CMP de Google ("Privacidad y mensajes") gestiona el consentimiento: adsbygoogle.js
+// no sirve anuncios personalizados sin él, así que aquí no hay que hacer nada más.
+import { SITE } from '../../site.config';
+
+interface Props {
+  slot: 'top' | 'inline' | 'bottom';
+}
+
+const { slot } = Astro.props;
+const client: string = SITE.adsenseClient;
+
+// IDs de bloque de anuncio (data-ad-slot) creados en AdSense > Anuncios > Por bloque de anuncio.
+// Si se dejan vacíos se usa el bloque sin data-ad-slot, válido con anuncios automáticos.
+const AD_UNITS: Record<Props['slot'], string> = {
+  top: '',
+  inline: '',
+  bottom: '',
+};
+const unit = AD_UNITS[slot];
+---
+{client && (
+  <aside class={`ad ad--${slot}`} aria-label="Publicidad">
+    <span class="ad__label">Publicidad</span>
+    <ins
+      class="adsbygoogle"
+      style="display:block"
+      data-ad-client={client}
+      data-ad-slot={unit || undefined}
+      data-ad-format="auto"
+      data-full-width-responsive="true"
+    ></ins>
+    <script is:inline>(window.adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </aside>
+)}
+
+<style>
+  .ad {
+    margin: 1.5rem auto;
+    max-width: 100%;
+    text-align: center;
+    overflow: hidden;
+  }
+  .ad__label {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    opacity: 0.6;
+    margin-bottom: 0.25rem;
+  }
+  /* Altura reservada (evita CLS). Los adaptables en móvil suelen medir 50–280 px. */
+  .ad .adsbygoogle {
+    min-height: 280px;
+  }
+  .ad--top .adsbygoogle {
+    min-height: 100px;
+  }
+  @media (min-width: 768px) {
+    .ad--top .adsbygoogle {
+      min-height: 90px;
+    }
+    .ad--inline .adsbygoogle,
+    .ad--bottom .adsbygoogle {
+      min-height: 250px;
+    }
+  }
+  /* No plegamos los huecos "unfilled": hacerlo después de pintar provocaría CLS. */
+</style>

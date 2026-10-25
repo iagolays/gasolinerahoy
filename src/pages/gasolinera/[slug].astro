@@ -1,0 +1,292 @@
+---
+// Ficha de una gasolinera: precios, comparación con el municipio y la provincia,
+// dirección, horario, mapa y gasolineras cercanas más baratas.
+import type { GetStaticPaths } from 'astro';
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
+import FuelTabs from '../../components/FuelTabs.astro';
+import Ranking from '../../components/Ranking.astro';
+import MapView from '../../components/MapView.astro';
+import Price from '../../components/Price.astro';
+import Delta from '../../components/Delta.astro';
+import { gasStationLd } from '../../components/seo/schema';
+import {
+  cheaperNearby,
+  getMunicipalityById,
+  getProvinceById,
+  getStations,
+  getStationsOf,
+  getUpdatedAt,
+  municipalityPath,
+  municipalityStats,
+  provincePath,
+  provinceStats,
+  stationPath,
+  type StationWithDistance,
+} from '../../lib/data';
+import { FUELS, FUEL_ORDER } from '../../lib/fuels';
+import type { FuelKey, Station } from '../../lib/types';
+import { int, joinList, km, tank } from '../../components/util/format';
+import { cap, cents, fuelName, priceU, theFuel, vsAvg } from '../../components/util/texts';
+
+export const getStaticPaths = (() => {
+  return getStations().map((station) => ({ params: { slug: station.slug }, props: { station } }));
+}) satisfies GetStaticPaths;
+
+interface Props {
+  station: Station;
+}
+const { station } = Astro.props;
+const muni = getMunicipalityById(station.municipalityId)!;
+const province = getProvinceById(station.provinceId)!;
+const mName = muni.name;
+const pName = province.name;
+const pScope = mName === pName ? `la provincia de ${pName}` : pName;
+const mStats = municipalityStats(muni.id);
+const pStats = provinceStats(province.id);
+const muniStations = getStationsOf(muni.id);
+const fuels = FUEL_ORDER.filter((f) => station.prices[f] !== undefined);
+const defaultFuel: FuelKey = fuels.includes('gasolina95') ? 'gasolina95' : (fuels[0] ?? 'gasolina95');
+
+// Puesto dentro del municipio (1 = la más barata) por carburante.
+const rankInMuni: Partial<Record<FuelKey, { pos: number; of: number }>> = {};
+for (const f of fuels) {
+  const own = station.prices[f]!;
+  const others = muniStations.filter((s) => s.prices[f] !== undefined);
+  rankInMuni[f] = { pos: others.filter((s) => s.prices[f]! < own).length + 1, of: others.length };
+}
+
+// Gasolineras más baratas a menos de RADIUS km, por carburante.
+const RADIUS = 10;
+const cheaper: Partial<Record<FuelKey, StationWithDistance[]>> = {};
+for (const f of fuels) cheaper[f] = cheaperNearby(station, f, RADIUS, 5);
+const mapStations = new Map<string, Station>([[station.id, station]]);
+for (const f of fuels) for (const s of cheaper[f] ?? []) if (mapStations.size < 16) mapStations.set(s.id, s);
+
+// ── Texto generado ──
+const main = fuels.filter((f) => f === 'gasolina95' || f === 'diesel');
+const textFuels = main.length ? main : fuels.slice(0, 1);
+const fullName = `${station.brand} en ${mName}`;
+const locality = station.locality && station.locality !== mName ? `${station.locality}, ${mName}` : mName;
+
+const title = `${station.brand} ${station.address}, ${mName}: precio de la gasolina hoy`;
+const description = `Precios de hoy en ${station.brand} (${station.address}, ${mName}, ${pName}): ${fuels
+  .slice(0, 3)
+  .map((f) => `${FUELS[f].label} ${priceU(station.prices[f]!, f)}`)
+  .join(', ')}. Horario, ubicación y gasolineras más baratas cerca.`;
+const path = stationPath(station);
+const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lon}`;
+const osmUrl = `https://www.openstreetmap.org/?mlat=${station.lat}&mlon=${station.lon}#map=17/${station.lat}/${station.lon}`;
+---
+<Base
+  title={title}
+  description={description}
+  path={path}
+  fuels={fuels.length ? fuels : FUEL_ORDER}
+  defaultFuel={defaultFuel}
+  ogType="website"
+  breadcrumbs={[
+    { name: pName, path: provincePath(province) },
+    { name: mName, path: municipalityPath(muni) },
+    { name: station.brand, path },
+  ]}
+  jsonLd={gasStationLd(station, { path, municipality: mName, province: pName, updatedAt: getUpdatedAt().toISOString() })}
+>
+  <header class="page-head">
+    <h1>{fullName}</h1>
+    <p class="addr">
+      {station.address}, {station.postalCode} {locality} ({pName})
+      {station.is24h && <span class="badge accent">Abierta 24 h</span>}
+    </p>
+  </header>
+
+  <section aria-labelledby="precios" class="prices-sec">
+    <h2 id="precios" class="visually-hidden">Precios de hoy</h2>
+    {fuels.length === 0 ? (
+      <p class="notice">Esta gasolinera no ha publicado precios de los carburantes que seguimos.</p>
+    ) : (
+      <ul class="fuel-cards">
+        {fuels.map((f) => {
+          const v = station.prices[f]!;
+          const r = rankInMuni[f]!;
+          return (
+            <li class:list={['fuel-card', { cheapest: r.of > 1 && r.pos === 1 }]}>
+              <h3>{FUELS[f].label}</h3>
+              <Price value={v} fuel={f} />
+              <div class="cmp">
+                {r.of > 1 && mStats[f] && <Delta value={v} reference={mStats[f]!.avg} suffix={`vs. ${mName}`} />}
+                {pStats[f] && <Delta value={v} reference={pStats[f]!.avg} suffix={`vs. ${pName}`} />}
+              </div>
+              {r.of > 1 && (
+                <p class="rank small">
+                  {r.pos === 1 ? <strong>La más barata de {mName}</strong> : <>Puesto {r.pos} de {r.of} en {mName}</>}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    )}
+  </section>
+
+  <AdSlot slot="top" />
+
+  <section class="section" aria-labelledby="resumen">
+    <h2 id="resumen">Resumen</h2>
+    <div class="prose">
+      <p>
+        {station.brand} es una gasolinera situada en {station.address}, en {locality} ({pName}){station.is24h ? ', abierta las 24 horas' : ''}.
+        {fuels.length > 0 && <> Vende {joinList(fuels.map(fuelName))}.</>}
+      </p>
+      {textFuels.map((f) => {
+        const v = station.prices[f]!;
+        const r = rankInMuni[f]!;
+        const c = cheaper[f] ?? [];
+        const bestNear = c[0];
+        return (
+          <p>
+            {cap(theFuel(f))} cuesta hoy {priceU(v, f)}{r.of > 1 && mStats[f] && <>, {vsAvg(v, mStats[f]!.avg, mName)}</>}{pStats[f] && <>{r.of > 1 ? ' y' : ','} {vsAvg(v, pStats[f]!.avg, pScope)}</>}; llenar un depósito de 50 litros cuesta unos {tank(v)}.
+            {r.of > 1 && (r.pos === 1 ? <> Es la más barata de las {int(r.of)} gasolineras de {mName} que lo venden.</> : <> Ocupa el puesto {r.pos} de {int(r.of)} en {mName}.</>)}
+            {bestNear ? (
+              <>
+                {' '}A menos de {RADIUS} km hay {c.length === 5 ? 'al menos 5 gasolineras' : c.length === 1 ? 'una gasolinera' : `${c.length} gasolineras`} más baratas;
+                la mejor es <a href={stationPath(bestNear)}>{bestNear.brand}</a> en{' '}
+                {getMunicipalityById(bestNear.municipalityId)?.name}, a {km(bestNear.distanceKm)} y {priceU(bestNear.prices[f]!, f)} ({cents(v, bestNear.prices[f]!)} menos por litro).
+              </>
+            ) : (
+              <> No hay ninguna gasolinera más barata a menos de {RADIUS} km.</>
+            )}
+          </p>
+        );
+      })}
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="info">
+    <h2 id="info">Dirección y horario</h2>
+    <div class="info-grid">
+      <dl class="card info">
+        <div><dt>Dirección</dt><dd>{station.address}</dd></div>
+        <div><dt>Localidad</dt><dd>{station.postalCode} {locality}</dd></div>
+        <div><dt>Provincia</dt><dd><a href={provincePath(province)}>{pName}</a></dd></div>
+        <div><dt>Horario</dt><dd>{station.schedule || 'No publicado'}</dd></div>
+        <div class="links">
+          <a class="btn btn-primary" href={mapsUrl} rel="noopener nofollow" target="_blank">Cómo llegar</a>
+          <a class="btn" href={osmUrl} rel="noopener nofollow" target="_blank">Ver en OpenStreetMap</a>
+        </div>
+      </dl>
+      <MapView stations={[...mapStations.values()]} mainId={station.id} label={`Mapa de ${fullName} y gasolineras cercanas más baratas`} height={340} maxZoom={15} />
+    </div>
+  </section>
+
+  <AdSlot slot="inline" />
+
+  {fuels.length > 0 && (
+    <section class="section" aria-labelledby="cerca">
+      <h2 id="cerca">Gasolineras más baratas cerca</h2>
+      <p class="section-sub">A menos de {RADIUS} km y con mejor precio que {station.brand} en el carburante seleccionado.</p>
+      <FuelTabs fuels={fuels} />
+      {fuels.map((f) =>
+        (cheaper[f] ?? []).length === 0 ? (
+          <p class="notice" data-fuel-pane={f}>
+            {station.brand} tiene {theFuel(f)} más barat{f.startsWith('gasolina') ? 'a' : 'o'} de la zona: no hay ninguna gasolinera con mejor precio a menos de {RADIUS} km.
+          </p>
+        ) : null,
+      )}
+      <Ranking rankings={Object.fromEntries(fuels.filter((f) => (cheaper[f] ?? []).length).map((f) => [f, cheaper[f]!]))} reference={Object.fromEntries(fuels.map((f) => [f, { min: 0, max: 0, avg: station.prices[f]!, median: 0, count: 1 }]))} refLabel="vs. esta" place="municipality" />
+      <p class="small" style="margin-top:14px">
+        <a href={municipalityPath(muni)}>Ver todas las gasolineras de {mName} →</a>
+      </p>
+    </section>
+  )}
+
+  <AdSlot slot="bottom" />
+</Base>
+
+<style>
+  .addr {
+    color: var(--muted);
+    font-size: 1.02rem;
+    margin: 0;
+  }
+  .addr .badge {
+    margin-left: 6px;
+  }
+  .prices-sec {
+    margin-top: 20px;
+  }
+  .fuel-cards {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  }
+  .fuel-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+  }
+  .fuel-card.cheapest {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), var(--shadow);
+  }
+  .fuel-card h3 {
+    font-size: 0.95rem;
+    color: var(--muted);
+    font-weight: 650;
+    margin: 0 0 2px;
+  }
+  .fuel-card :global(.price) {
+    font-size: clamp(1.8rem, 1.4rem + 1.6vw, 2.4rem);
+    line-height: 1.1;
+  }
+  .cmp {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .rank {
+    margin: 8px 0 0;
+    color: var(--muted);
+  }
+  .rank strong {
+    color: var(--good);
+  }
+  .info-grid {
+    display: grid;
+    gap: 12px;
+  }
+  @media (min-width: 860px) {
+    .info-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    }
+  }
+  .info {
+    margin: 0;
+    display: grid;
+    gap: 12px;
+    align-content: start;
+  }
+  .info dt {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .info dd {
+    margin: 0;
+    font-weight: 550;
+  }
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+</style>

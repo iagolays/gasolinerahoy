@@ -1,0 +1,190 @@
+---
+// Buscador de municipios. Descarga el JSON de estaciones al enfocar el campo
+// (no antes) y filtra en cliente. Sin JS se remite a la lista de provincias.
+interface Props {
+  id?: string;
+}
+const { id = 'buscar-municipio' } = Astro.props;
+---
+<form class="muni-search" role="search" data-muni-search action="/#provincias">
+  <label for={id} class="ms-label">Busca tu municipio</label>
+  <div class="ms-field">
+    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input
+      id={id}
+      type="search"
+      autocomplete="off"
+      spellcheck="false"
+      placeholder="Ej.: Getafe, Vigo, Ronda…"
+      aria-describedby={`${id}-status`}
+      aria-controls={`${id}-results`}
+    />
+  </div>
+  <p id={`${id}-status`} class="ms-status small muted" aria-live="polite"></p>
+  <ul id={`${id}-results`} class="ms-results"></ul>
+</form>
+
+<script>
+  import { loadStationsRaw, norm } from './scripts/stations';
+
+  interface Item {
+    name: string;
+    prov: string;
+    url: string;
+    key: string;
+  }
+
+  for (const form of document.querySelectorAll<HTMLFormElement>('[data-muni-search]')) {
+    const input = form.querySelector('input')!;
+    const list = form.querySelector('ul')!;
+    const status = form.querySelector('.ms-status')!;
+    let items: Item[] | null = null;
+
+    const load = async () => {
+      if (items) return items;
+      status.textContent = 'Cargando municipios…';
+      try {
+        const raw = await loadStationsRaw();
+        items = raw.m.map(([name, slug, pi]) => {
+          const [, provName, provSlug] = raw.p[pi]!;
+          return { name, prov: provName, url: `/provincia/${provSlug}/${slug}/`, key: norm(name) };
+        });
+        status.textContent = '';
+      } catch {
+        status.textContent = 'No se han podido cargar los municipios. Usa la lista de provincias.';
+      }
+      return items;
+    };
+
+    const render = async () => {
+      const q = norm(input.value);
+      list.replaceChildren();
+      if (q.length < 2) {
+        status.textContent = '';
+        return;
+      }
+      const all = await load();
+      if (!all) return;
+      const starts: Item[] = [];
+      const contains: Item[] = [];
+      for (const it of all) {
+        if (it.key.startsWith(q)) starts.push(it);
+        else if (it.key.includes(q)) contains.push(it);
+      }
+      starts.sort((a, b) => a.name.length - b.name.length || a.name.localeCompare(b.name, 'es'));
+      const found = [...starts, ...contains].slice(0, 8);
+      for (const it of found) {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = it.url;
+        a.innerHTML = '<span class="ms-name"></span><span class="ms-prov"></span>';
+        a.querySelector('.ms-name')!.textContent = it.name;
+        a.querySelector('.ms-prov')!.textContent = it.prov;
+        li.append(a);
+        list.append(li);
+      }
+      status.textContent = found.length
+        ? `${found.length === 8 ? 'Primeros 8' : found.length} resultado${found.length === 1 ? '' : 's'}`
+        : 'Ningún municipio con gasolineras coincide.';
+    };
+
+    form.addEventListener("submit", (e) => e.preventDefault());
+    input.addEventListener('focus', () => void load(), { once: true });
+    input.addEventListener('input', () => void render());
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        list.querySelector('a')?.focus();
+        e.preventDefault();
+      } else if (e.key === 'Enter') {
+        const first = list.querySelector('a');
+        if (first) location.href = first.href;
+      }
+    });
+    list.addEventListener('keydown', (e) => {
+      const a = document.activeElement as HTMLElement | null;
+      const li = a?.parentElement;
+      if (e.key === 'ArrowDown') {
+        (li?.nextElementSibling?.querySelector('a') as HTMLElement | null)?.focus();
+        e.preventDefault();
+      } else if (e.key === 'ArrowUp') {
+        const prev = li?.previousElementSibling?.querySelector('a') as HTMLElement | null;
+        (prev ?? input).focus();
+        e.preventDefault();
+      } else if (e.key === 'Escape') {
+        input.focus();
+      }
+    });
+  }
+</script>
+
+<style>
+  .muni-search {
+    position: relative;
+    max-width: 520px;
+  }
+  .ms-label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .ms-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 999px;
+    padding: 0 16px;
+    color: var(--muted);
+  }
+  .ms-field:focus-within {
+    border-color: var(--accent);
+  }
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 1.05rem;
+    padding: 12px 0;
+    outline: none;
+  }
+  .ms-status {
+    margin: 6px 4px 0;
+    min-height: 1.2em;
+  }
+  .ms-status:empty {
+    display: none;
+  }
+  .ms-results {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 4px;
+  }
+  .ms-results:empty {
+    display: none;
+  }
+  .ms-results :global(a) {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    text-decoration: none;
+    font-weight: 650;
+  }
+  .ms-results :global(a:hover),
+  .ms-results :global(a:focus-visible) {
+    border-color: var(--accent);
+  }
+  .ms-results :global(.ms-prov) {
+    color: var(--muted);
+    font-weight: 400;
+  }
+</style>

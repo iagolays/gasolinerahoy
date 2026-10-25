@@ -1,0 +1,57 @@
+# Comprobaciones en cada push y pull request: tests, tipos y build.
+name: CI
+
+on:
+  push:
+    branches-ignore: [main] # main ya lo compila y despliega deploy.yml
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v7.0.1
+
+      - name: Instalar Node
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      # Solo lectura de la caché que deja deploy.yml (no se guarda nada desde CI).
+      - name: Restaurar la última descarga
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: data/raw
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
+
+      - name: Descargar y procesar los datos
+        run: npm run data
+
+      - name: Comprobar tipos (astro check)
+        run: npm run check
+
+      - name: Compilar la web
+        run: npm run build
+
+      - name: Contar archivos (límite de Cloudflare Pages = 20.000)
+        run: |
+          n=$(find dist -type f | wc -l)
+          echo "Archivos en dist: $n"
+          [ "$n" -lt 20000 ] || { echo "::error::dist tiene $n archivos (máximo 20.000)"; exit 1; }

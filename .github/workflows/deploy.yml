@@ -1,0 +1,91 @@
+# Regenera los datos y despliega en Cloudflare Pages cada hora.
+name: Desplegar
+
+on:
+  schedule:
+    # Minuto 17 de cada hora: evita la congestión de GitHub en la hora en punto
+    # (los cron programados pueden retrasarse unos minutos).
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'data/history/**'
+
+permissions:
+  contents: write # para hacer commit de data/history/history.json
+
+# Un solo despliegue a la vez; si se acumulan, el nuevo espera (no se cancela uno a medias).
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Nombre del proyecto en Cloudflare Pages (variable del repositorio, opcional).
+      CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT || 'repostabarato' }}
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0 # historial completo para poder hacer rebase al subir el histórico
+
+      - name: Instalar Node
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Guarda la última descarga buena entre ejecuciones: si la API da 503,
+      # npm run data reutiliza data/raw/latest.json y el build no se rompe.
+      - name: Restaurar la última descarga
+        uses: actions/cache@v6.1.0
+        with:
+          path: data/raw
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
+
+      - name: Descargar y procesar los datos
+        run: npm run data
+
+      - name: Compilar la web
+        run: npm run build
+
+      - name: Contar archivos (límite de Cloudflare Pages = 20.000)
+        run: |
+          n=$(find dist -type f | wc -l)
+          echo "Archivos en dist: $n"
+          if [ "$n" -ge 20000 ]; then
+            echo "::error::dist tiene $n archivos y Cloudflare Pages admite 20.000 como máximo"
+            exit 1
+          fi
+
+      - name: Desplegar en Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.149.0'
+          command: pages deploy dist --project-name=${{ env.CF_PAGES_PROJECT }} --branch=main --commit-dirty=true
+
+      - name: Guardar el histórico si ha cambiado
+        run: |
+          if git diff --quiet -- data/history/history.json && \
+             [ -z "$(git ls-files --others --exclude-standard -- data/history/history.json)" ]; then
+            echo "El histórico no ha cambiado."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/history/history.json
+          git commit -m "datos: histórico $(date -u +%F)"
+          # Por si alguien ha subido cambios mientras tanto.
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

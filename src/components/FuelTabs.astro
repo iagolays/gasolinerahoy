@@ -1,0 +1,78 @@
+---
+// Pestañas de carburante. Cambian <html data-fuel> (ver scripts/fuel.ts); todo lo que
+// lleve data-fuel-pane se muestra u oculta según el carburante activo.
+import { FUELS, FUEL_ORDER } from '../lib/fuels';
+import type { FuelKey } from '../lib/types';
+
+interface Props {
+  /** Carburantes a ofrecer (por defecto, todos). */
+  fuels?: readonly FuelKey[];
+  label?: string;
+  sticky?: boolean;
+}
+const { fuels = FUEL_ORDER, label = 'Elige carburante', sticky = false } = Astro.props;
+const list = FUEL_ORDER.filter((f) => fuels.includes(f));
+---
+<div class:list={['fuel-tabs', { sticky }]} role="group" aria-label={label}>
+  {list.map((f) => (
+    <button type="button" class="fuel-tab" data-set-fuel={f} aria-pressed="false" title={FUELS[f].label}>
+      {FUELS[f].short}
+    </button>
+  ))}
+</div>
+
+<style>
+  .fuel-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 6px;
+    margin: 0 0 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    width: fit-content;
+    max-width: 100%;
+  }
+  .fuel-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .fuel-tabs.sticky {
+    position: sticky;
+    top: 68px;
+    z-index: 900;
+    box-shadow: var(--shadow);
+  }
+  .fuel-tab {
+    flex-shrink: 0;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    padding: 8px 14px;
+    min-height: 40px;
+    cursor: pointer;
+  }
+  .fuel-tab:hover {
+    color: var(--ink);
+  }
+  .fuel-tab[aria-pressed='true'] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  /* Sin JS los botones no hacen nada: marcamos el carburante por defecto con CSS. */
+  :global(html[data-fuel='gasolina95']) .fuel-tab[data-set-fuel='gasolina95'],
+  :global(html[data-fuel='gasolina98']) .fuel-tab[data-set-fuel='gasolina98'],
+  :global(html[data-fuel='diesel']) .fuel-tab[data-set-fuel='diesel'],
+  :global(html[data-fuel='dieselPremium']) .fuel-tab[data-set-fuel='dieselPremium'],
+  :global(html[data-fuel='glp']) .fuel-tab[data-set-fuel='glp'],
+  :global(html[data-fuel='gnc']) .fuel-tab[data-set-fuel='gnc'],
+  :global(html[data-fuel='adblue']) .fuel-tab[data-set-fuel='adblue'] {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+</style>

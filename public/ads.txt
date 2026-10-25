@@ -1,0 +1,8 @@
+# ads.txt — vendedores autorizados de los anuncios de este sitio (IAB Tech Lab).
+#
+# Cuando AdSense apruebe el sitio:
+#   1. Copia tu ID de editor (AdSense > Cuenta > Información de la cuenta), p. ej. pub-1234567890123456.
+#   2. Quita la almohadilla de la línea de abajo y sustituye pub-XXXXXXXXXXXXXXXX por tu ID.
+#   3. Pon el mismo ID con el prefijo "ca-" en adsenseClient de src/site.config.ts.
+#
+# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0

@@ -1,0 +1,58 @@
+---
+// Ranking de las gasolineras más baratas, un panel por carburante (se cambia con FuelTabs).
+import { FUELS, FUEL_ORDER } from '../lib/fuels';
+import { stationPath } from '../lib/data';
+import type { FuelKey, Station, StatsByFuel } from '../lib/types';
+import Price from './Price.astro';
+import Delta from './Delta.astro';
+import { placeOf } from './util/places';
+import { km } from './util/format';
+
+type RankedStation = Station & { distanceKm?: number };
+
+interface Props {
+  rankings: Partial<Record<FuelKey, RankedStation[]>>;
+  /** Media con la que comparar cada precio. */
+  reference?: StatsByFuel;
+  refLabel?: string;
+  /** Qué lugar mostrar bajo la dirección. */
+  place?: 'municipality' | 'full' | 'none';
+}
+const { rankings, reference, refLabel = 'vs. media', place = 'municipality' } = Astro.props;
+const fuels = FUEL_ORDER.filter((f) => rankings[f]);
+---
+{fuels.map((f) => {
+  const list = rankings[f]!;
+  return (
+    <div data-fuel-pane={f}>
+      {list.length === 0 ? (
+        <p class="muted">No hay datos de {FUELS[f].label.toLowerCase()}.</p>
+      ) : (
+        <ol class="ranking" aria-label={`Más baratas: ${FUELS[f].label}`}>
+          {list.map((s, i) => {
+            const p = placeOf(s);
+            const where =
+              place === 'full' ? `${p.municipality} (${p.province})` : place === 'municipality' ? p.municipality : '';
+            return (
+              <li class="rank-item">
+                <span class="rank-pos" aria-hidden="true">{i + 1}</span>
+                <div class="rank-body">
+                  <a class="rank-name" href={stationPath(s)}>{s.brand}</a>
+                  <span class="rank-addr">
+                    {s.address}
+                    {where && <>{' · '}{where}</>}
+                    {s.distanceKm !== undefined && <>{' · '}{km(s.distanceKm)}</>}
+                  </span>
+                </div>
+                <div class="rank-price">
+                  <Price value={s.prices[f]!} fuel={f} />
+                  {reference?.[f] && <Delta value={s.prices[f]!} reference={reference[f]!.avg} suffix={refLabel} />}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+})}

@@ -1,0 +1,188 @@
+---
+// Política de cookies (art. 22.2 LSSI-CE y Guía sobre el uso de las cookies de la AEPD).
+import Base from '../layouts/Base.astro';
+import { SITE } from '../site.config';
+
+const REVISADO = '26 de octubre de 2026';
+const hayAnuncios = SITE.adsenseClient !== '';
+---
+<Base
+  title="Política de cookies"
+  description={`Qué cookies y almacenamiento local usa ${SITE.name}, para qué sirven y cómo aceptarlas, rechazarlas o retirar el consentimiento.`}
+  path="/cookies/"
+  noindex
+  breadcrumbs={[{ name: 'Cookies', path: '/cookies/' }]}
+>
+  <article class="prose legal">
+    <h1>Política de cookies</h1>
+    <p class="muted small">Última revisión: {REVISADO}.</p>
+
+    <h2>1. Qué son las cookies</h2>
+    <p>
+      Las cookies son pequeños archivos que un sitio web guarda en tu navegador para recordar información sobre
+      tu visita. Esta política también cubre tecnologías parecidas, como el almacenamiento local del navegador
+      (<code>localStorage</code>) o los identificadores de publicidad.
+    </p>
+
+    <h2>2. Cómo gestionamos tu consentimiento</h2>
+    <p>
+      Al entrar por primera vez verás un aviso de Google (plataforma de gestión del consentimiento certificada por
+      Google e integrada en el Marco de Transparencia y Consentimiento de IAB Europe). Desde él puedes
+      <strong>aceptar</strong>, <strong>rechazar</strong> o <strong>configurar</strong> por finalidades y por
+      proveedores las cookies que no son necesarias. Mientras no aceptes, no se instalan cookies de publicidad
+      personalizada. Rechazar no te impide usar el sitio.
+    </p>
+    <p>Puedes cambiar o retirar tu consentimiento en cualquier momento:</p>
+    {hayAnuncios ? (
+      <p>
+        <button type="button" class="btn btn-primary" id="abrir-consentimiento">Privacidad y cookies: cambiar mi elección</button>
+      </p>
+    ) : (
+      <p class="notice">
+        Ahora mismo el sitio no muestra anuncios, así que no utiliza cookies de publicidad ni muestra el aviso de
+        consentimiento. Cuando se activen, aquí aparecerá un botón para cambiar tu elección.
+      </p>
+    )}
+    <p>
+      También puedes usar el botón «Privacidad y cookies» que el aviso de Google muestra en las páginas, o borrar
+      las cookies desde tu navegador.
+    </p>
+
+    <h2>3. Cookies y almacenamiento que se usan</h2>
+
+    <h3>3.1. Técnicas o necesarias (no requieren consentimiento)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Nombre</th><th>Titular</th><th>Finalidad</th><th>Duración</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>rb-fuel</code> (localStorage)</td>
+            <td>{SITE.name}</td>
+            <td>Recordar el carburante que has elegido en las pestañas.</td>
+            <td>Hasta que lo borres</td>
+          </tr>
+          <tr>
+            <td><code>FCCDCF</code>, <code>FCNEC</code></td>
+            <td>Google (CMP)</td>
+            <td>Guardar tu elección de consentimiento (cadena TCF) para no volver a preguntarte.</td>
+            <td>Hasta 13 meses</td>
+          </tr>
+          <tr>
+            <td><code>__cf_bm</code> y similares</td>
+            <td>Cloudflare</td>
+            <td>Seguridad: distinguir personas de bots. Solo se instala si se detecta tráfico sospechoso.</td>
+            <td>30 minutos</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.2. Publicidad (requieren consentimiento)</h3>
+    <p>
+      Las instala <strong>Google</strong> (AdSense / DoubleClick) y, si lo aceptas, otros proveedores publicitarios
+      que aparecen en el aviso de consentimiento. Sirven para mostrar anuncios, personalizarlos según tus intereses,
+      limitar cuántas veces ves el mismo anuncio, medir su rendimiento y prevenir el fraude.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Nombre (ejemplos)</th><th>Titular</th><th>Finalidad</th><th>Duración</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>__gads</code>, <code>__gpi</code>, <code>__eoi</code></td>
+            <td>Google</td>
+            <td>Mostrar anuncios, limitar su frecuencia y medir su rendimiento.</td>
+            <td>Entre 6 y 13 meses</td>
+          </tr>
+          <tr>
+            <td><code>IDE</code>, <code>test_cookie</code> (doubleclick.net)</td>
+            <td>Google</td>
+            <td>Publicidad personalizada y comprobación de si el navegador admite cookies.</td>
+            <td>Hasta 13 meses</td>
+          </tr>
+          <tr>
+            <td>Varias</td>
+            <td>Proveedores del TCF</td>
+            <td>Según la finalidad que indique cada proveedor en el aviso de consentimiento.</td>
+            <td>Según el proveedor</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted">
+      Google puede cambiar los nombres y las duraciones. La lista actualizada está en
+      <a href="https://policies.google.com/technologies/cookies?hl=es" rel="noopener" target="_blank">Cómo utiliza Google las cookies</a> y en
+      <a href="https://policies.google.com/technologies/partner-sites?hl=es" rel="noopener" target="_blank">Cómo utiliza Google los datos de los sitios de sus partners</a>.
+    </p>
+
+    <h3>3.3. Mapas</h3>
+    <p>
+      Las teselas de OpenStreetMap no instalan cookies, pero al descargarlas tu navegador envía tu IP a sus
+      servidores (ver la <a href="/privacidad/">política de privacidad</a>).
+    </p>
+
+    <p>{SITE.name} no usa cookies de analítica.</p>
+
+    <h2>4. Cómo borrar o bloquear cookies en el navegador</h2>
+    <ul>
+      <li><a href="https://support.google.com/chrome/answer/95647?hl=es" rel="noopener" target="_blank">Google Chrome</a></li>
+      <li><a href="https://support.mozilla.org/es/kb/Borrar%20cookies" rel="noopener" target="_blank">Mozilla Firefox</a></li>
+      <li><a href="https://support.apple.com/es-es/guide/safari/sfri11471/mac" rel="noopener" target="_blank">Safari (Mac)</a> y <a href="https://support.apple.com/es-es/105082" rel="noopener" target="_blank">Safari (iPhone)</a></li>
+      <li><a href="https://support.microsoft.com/es-es/microsoft-edge/eliminar-las-cookies-en-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" rel="noopener" target="_blank">Microsoft Edge</a></li>
+    </ul>
+    <p>
+      Si bloqueas todas las cookies el sitio seguirá funcionando, pero tendrás que volver a elegir tus preferencias
+      en cada visita.
+    </p>
+
+    <h2>5. Responsable y más información</h2>
+    <p>
+      Responsable: [NOMBRE] (<a href="mailto:[EMAIL]">[EMAIL]</a>). Para saber cómo tratamos los datos y cómo ejercer
+      tus derechos, consulta la <a href="/privacidad/">política de privacidad</a>.
+    </p>
+  </article>
+
+  {hayAnuncios && (
+    <script is:inline>
+      // Reabre el aviso de consentimiento de la CMP de Google ("Privacidad y mensajes").
+      document.getElementById('abrir-consentimiento')?.addEventListener('click', function () {
+        window.googlefc = window.googlefc || {};
+        window.googlefc.callbackQueue = window.googlefc.callbackQueue || [];
+        window.googlefc.callbackQueue.push(function () {
+          window.googlefc.showRevocationMessage();
+        });
+      });
+    </script>
+  )}
+</Base>
+
+<style>
+  .legal h2 {
+    margin-top: 1.6em;
+  }
+  .legal h3 {
+    margin-top: 1.2em;
+  }
+  .legal ul {
+    padding-left: 1.2em;
+  }
+  .table-wrap {
+    overflow-x: auto;
+    margin: 0 0 1em;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.9rem;
+  }
+  th,
+  td {
+    text-align: left;
+    vertical-align: top;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+</style>

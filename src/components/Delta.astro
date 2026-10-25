@@ -1,0 +1,17 @@
+---
+// Diferencia de un precio respecto a una referencia, con color (verde = más barato).
+import { deltaClass, pct, pctDiff } from './util/format';
+
+interface Props {
+  value: number;
+  reference: number;
+  /** Texto tras el porcentaje, p. ej. "vs. media". */
+  suffix?: string;
+}
+const { value, reference, suffix = '' } = Astro.props;
+const d = pctDiff(value, reference);
+const cls = deltaClass(d);
+const text = `${cls === 'eq' ? '≈ 0\u00a0%' : pct(d, true)} ${suffix}`.trim();
+const title = cls === 'good' ? 'Más barato' : cls === 'bad' ? 'Más caro' : 'Prácticamente igual';
+---
+<span class:list={['delta', cls]} title={title}>{text}</span>

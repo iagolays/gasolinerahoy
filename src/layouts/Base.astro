@@ -1,0 +1,256 @@
+---
+// Layout base: <head> con <Seo>, cabecera, migas de pan, contenido y pie.
+// También define el carburante activo (<html data-fuel>) que usan las pestañas.
+import '../styles/global.css';
+import Seo from '../components/seo/Seo.astro';
+import { breadcrumbLd } from '../components/seo/schema';
+import Logo from '../components/Logo.astro';
+import { SITE } from '../site.config';
+import { FUEL_ORDER } from '../lib/fuels';
+import type { FuelKey } from '../lib/types';
+import { getUpdatedAt } from '../lib/data';
+import { dateTime } from '../components/util/format';
+
+export interface Crumb {
+  name: string;
+  path: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  path: string;
+  jsonLd?: object | object[];
+  noindex?: boolean;
+  ogType?: string;
+  /** Migas desde la portada (sin incluirla) hasta la página actual (incluida). */
+  breadcrumbs?: Crumb[];
+  /** Carburante activo por defecto (sin JS o sin preferencia guardada). */
+  defaultFuel?: FuelKey;
+  /** Carburantes con datos en esta página; la preferencia guardada solo se aplica si está aquí. */
+  fuels?: readonly FuelKey[];
+}
+
+const {
+  title,
+  description,
+  path,
+  jsonLd,
+  noindex,
+  ogType,
+  breadcrumbs = [],
+  fuels = FUEL_ORDER,
+} = Astro.props;
+const defaultFuel: FuelKey =
+  Astro.props.defaultFuel ?? (fuels.includes('gasolina95') ? 'gasolina95' : (fuels[0] ?? 'gasolina95'));
+
+const crumbs: Crumb[] = breadcrumbs.length ? [{ name: 'Inicio', path: '/' }, ...breadcrumbs] : [];
+const ld = [
+  ...(jsonLd === undefined ? [] : Array.isArray(jsonLd) ? jsonLd : [jsonLd]),
+  ...(crumbs.length ? [breadcrumbLd(crumbs)] : []),
+];
+
+const updatedAt = getUpdatedAt();
+const year = updatedAt.getFullYear();
+---
+<!doctype html>
+<html lang="es" data-fuel={defaultFuel} data-fuels={fuels.join(' ')}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f6f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e1114" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    {/* Aplica el carburante preferido antes de pintar, para que no parpadee. */}
+    <script is:inline>
+      try {
+        var f = localStorage.getItem('rb-fuel');
+        var d = document.documentElement;
+        if (f && (' ' + d.dataset.fuels + ' ').indexOf(' ' + f + ' ') > -1) d.dataset.fuel = f;
+      } catch (e) {}
+    </script>
+    <Seo title={title} description={description} path={path} jsonLd={ld.length ? ld : undefined} noindex={noindex} ogType={ogType} />
+    <slot name="head" />
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a href="/" class="brand" aria-label={`${SITE.name}, ir a la portada`}>
+          <Logo />
+          <span class="brand-name">Reposta<b>Barato</b></span>
+        </a>
+        <nav aria-label="Principal" class="main-nav">
+          <a href="/#provincias">Provincias</a>
+          <a href="/cerca/" class="nav-near">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+            Cerca de mí
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    {crumbs.length > 0 && (
+      <nav aria-label="Migas de pan" class="wrap crumbs">
+        <ol>
+          {crumbs.map((c, i) =>
+            i === crumbs.length - 1 ? (
+              <li aria-current="page">{c.name}</li>
+            ) : (
+              <li><a href={c.path}>{c.name}</a></li>
+            ),
+          )}
+        </ol>
+      </nav>
+    )}
+
+    <main id="contenido" class="wrap">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <div class="footer-brand">
+          <a href="/" class="brand"><Logo size={28} /><span class="brand-name">Reposta<b>Barato</b></span></a>
+          <p class="small">
+            Precios actualizados el <time datetime={updatedAt.toISOString()}>{dateTime(updatedAt)}</time>.
+            Los precios son orientativos: confírmalos en el surtidor antes de repostar.
+          </p>
+        </div>
+        <div class="footer-source small">
+          <p>
+            Origen de los datos: <a href={SITE.dataSource.url} rel="noopener" target="_blank">Ministerio para la Transición Ecológica y el Reto Demográfico</a>{' '}
+            (Geoportal de Hidrocarburos), reutilizados conforme a la Ley 37/2007. {SITE.name} es una web independiente y <strong>no es un servicio oficial</strong>.
+          </p>
+        </div>
+        <nav aria-label="Legal" class="footer-legal small">
+          <a href="/acerca/">Acerca de</a>
+          <a href="/aviso-legal/">Aviso legal</a>
+          <a href="/privacidad/">Privacidad</a>
+          <a href="/cookies/">Cookies</a>
+        </nav>
+        <p class="small muted copy">© {year} {SITE.name}</p>
+      </div>
+    </footer>
+
+    <script>
+      import { initFuelTabs } from '../components/scripts/fuel';
+      initFuelTabs();
+    </script>
+  </body>
+</html>
+
+<style>
+  .site-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 60px;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    text-decoration: none;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+  }
+  .brand-name {
+    font-weight: 600;
+  }
+  .brand-name b {
+    font-weight: 850;
+    color: var(--accent);
+  }
+  .main-nav {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .main-nav a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 8px 12px;
+    min-height: 40px;
+    border-radius: 999px;
+  }
+  .main-nav a:hover {
+    background: var(--surface-2);
+  }
+  .main-nav .nav-near {
+    background: var(--accent-soft);
+    color: var(--good);
+  }
+  @media (max-width: 420px) {
+    .main-nav a:not(.nav-near) {
+      display: none;
+    }
+  }
+
+  .crumbs ol {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 0;
+    margin: 14px 0 0;
+    padding: 0;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+  .crumbs li + li::before {
+    content: '/';
+    margin: 0 8px;
+    opacity: 0.6;
+  }
+  .crumbs a {
+    color: var(--muted);
+  }
+
+  .site-footer {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 32px 0 40px;
+    margin-top: 24px;
+  }
+  .footer-inner {
+    display: grid;
+    gap: 14px;
+  }
+  .footer-inner p {
+    color: var(--muted);
+    margin: 8px 0 0;
+  }
+  .footer-legal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+  }
+  .footer-legal a {
+    padding: 6px 0;
+  }
+  .copy {
+    margin: 0;
+  }
+  @media (min-width: 860px) {
+    .footer-inner {
+      grid-template-columns: 1.1fr 1.4fr;
+      column-gap: 48px;
+    }
+    .footer-legal,
+    .copy {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

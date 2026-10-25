@@ -1,0 +1,10 @@
+# robots.txt de RepostaBarato
+User-agent: *
+Allow: /
+
+# Rastreador de AdSense: acceso completo para poder segmentar los anuncios.
+User-agent: Mediapartners-Google
+Allow: /
+
+# Si cambias el dominio en src/site.config.ts, cámbialo también aquí.
+Sitemap: https://repostabarato.es/sitemap-index.xml

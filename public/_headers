@@ -1,0 +1,46 @@
+# Cabeceras de Cloudflare Pages (https://developers.cloudflare.com/pages/configuration/headers/).
+# Si una petición encaja en varias reglas se suman sus cabeceras; "! Cabecera" quita la heredada.
+
+# Por defecto (HTML): siempre se revalida, porque los precios cambian cada hora.
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=()
+
+# Assets con hash en el nombre (CSS, JS, imágenes de Astro): caché de un año.
+/_astro/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable
+
+# Datos para "cerca de mí": se regeneran cada hora.
+/data/*
+  ! Cache-Control
+  Cache-Control: public, max-age=3600, stale-while-revalidate=600
+  Access-Control-Allow-Origin: *
+
+# Iconos y archivos estáticos sin hash: un día.
+/favicon.*
+  ! Cache-Control
+  Cache-Control: public, max-age=86400
+/og.png
+  ! Cache-Control
+  Cache-Control: public, max-age=86400
+
+# ads.txt, robots.txt y sitemaps: una hora.
+/ads.txt
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
+/robots.txt
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
+/sitemap*
+  ! Cache-Control
+  Cache-Control: public, max-age=3600
+
+# Las URL de despliegue (*.pages.dev) no deben indexarse: solo el dominio propio.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+https://:version.:project.pages.dev/*
+  X-Robots-Tag: noindex

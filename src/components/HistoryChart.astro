@@ -1,0 +1,189 @@
+---
+// Gráfico del histórico de precios (mediana diaria) en SVG hecho a mano, sin librerías.
+// Un panel por carburante (se cambia con FuelTabs). Incluye tabla de datos accesible.
+import { FUELS, FUEL_ORDER } from '../lib/fuels';
+import type { FuelKey } from '../lib/types';
+import { fuelName } from './util/texts';
+import { date as fmtDate, pct, pctDiff, price, shortDay } from './util/format';
+
+type Point = { date: string; value: number };
+
+interface Props {
+  series: Partial<Record<FuelKey, Point[]>>;
+  /** Ámbito para los textos: "en España", "en Madrid". */
+  scope: string;
+}
+const { series, scope } = Astro.props;
+const fuels = FUEL_ORDER.filter((f) => series[f]);
+
+const W = 640;
+const H = 240;
+const PAD = { top: 16, right: 18, bottom: 28, left: 52 };
+const innerW = W - PAD.left - PAD.right;
+const innerH = H - PAD.top - PAD.bottom;
+
+/** Escala "bonita" para el eje Y: 4 marcas redondeadas a céntimos o medios céntimos. */
+function niceTicks(min: number, max: number): number[] {
+  const span = Math.max(max - min, 0.01);
+  const raw = span / 3;
+  const steps = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5];
+  const step = steps.find((s) => s >= raw) ?? 1;
+  const start = Math.floor(min / step) * step;
+  const ticks: number[] = [];
+  for (let v = start; v <= max + step * 0.999; v += step) ticks.push(Math.round(v * 1000) / 1000);
+  if (ticks.length < 2) ticks.push(Math.round((start + step) * 1000) / 1000);
+  return ticks;
+}
+
+function build(points: Point[]) {
+  const values = points.map((p) => p.value);
+  const ticks = niceTicks(Math.min(...values), Math.max(...values));
+  const y0 = ticks[0]!;
+  const y1 = ticks[ticks.length - 1]!;
+  const n = points.length;
+  const x = (i: number) => PAD.left + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+  const y = (v: number) => PAD.top + innerH - ((v - y0) / (y1 - y0 || 1)) * innerH;
+  const coords = points.map((p, i) => [x(i), y(p.value)] as const);
+  const line = coords.map(([cx, cy], i) => `${i ? 'L' : 'M'}${cx.toFixed(1)},${cy.toFixed(1)}`).join('');
+  const area = `${line}L${coords[n - 1]![0].toFixed(1)},${PAD.top + innerH}L${coords[0]![0].toFixed(1)},${PAD.top + innerH}Z`;
+  // Etiquetas del eje X: primera, última y alguna intermedia.
+  const labelIdx = n <= 2 ? [...Array(n).keys()] : [0, Math.round((n - 1) / 3), Math.round((2 * (n - 1)) / 3), n - 1];
+  const xLabels = [...new Set(labelIdx)].map((i) => ({ x: x(i), text: shortDay(points[i]!.date), i }));
+  const yLabels = ticks.map((t) => ({ y: y(t), text: price(t) }));
+  const first = points[0]!;
+  const last = points[n - 1]!;
+  const minP = points.reduce((a, b) => (b.value < a.value ? b : a));
+  const maxP = points.reduce((a, b) => (b.value > a.value ? b : a));
+  return { coords, line, area, xLabels, yLabels, first, last, minP, maxP, n };
+}
+---
+{fuels.map((f) => {
+  const pts = series[f]!;
+  if (pts.length < 2) {
+    return (
+      <p class="notice" data-fuel-pane={f}>
+        Estamos empezando a guardar el histórico de {fuelName(f)} {scope}
+        {pts[0] && <> (primer dato: {fmtDate(new Date(`${pts[0].date}T12:00:00Z`))}, {price(pts[0].value)} {FUELS[f].unit})</>}.
+        El gráfico aparecerá en cuanto haya varios días de datos.
+      </p>
+    );
+  }
+  const c = build(pts);
+  const d = pctDiff(c.last.value, c.first.value);
+  const trend = Math.abs(d) < 0.3 ? 'se ha mantenido estable' : d < 0 ? `ha bajado un ${pct(d)}` : `ha subido un ${pct(d)}`;
+  const summary = `Desde el ${fmtDate(new Date(`${c.first.date}T12:00:00Z`))}, el precio mediano de ${fuelName(f)} ${scope} ${trend}: de ${price(c.first.value)} a ${price(c.last.value)} ${FUELS[f].unit}. El mínimo del periodo fue ${price(c.minP.value)} (${shortDay(c.minP.date)}) y el máximo ${price(c.maxP.value)} (${shortDay(c.maxP.date)}).`;
+  const [lx, ly] = c.coords[c.n - 1]!;
+  return (
+    <figure class="chart" data-fuel-pane={f}>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby={`hc-${f}-t hc-${f}-d`} preserveAspectRatio="xMidYMid meet">
+        <title id={`hc-${f}-t`}>Evolución del precio mediano de {fuelName(f)} {scope}</title>
+        <desc id={`hc-${f}-d`}>{summary}</desc>
+        <g class="grid">
+          {c.yLabels.map((t) => (
+            <>
+              <line x1={PAD.left} x2={W - PAD.right} y1={t.y} y2={t.y} />
+              <text x={PAD.left - 8} y={t.y + 4} text-anchor="end">{t.text}</text>
+            </>
+          ))}
+        </g>
+        <g class="xaxis">
+          {c.xLabels.map((l, k) => (
+            <text x={l.x} y={H - 8} text-anchor={k === 0 ? 'start' : k === c.xLabels.length - 1 ? 'end' : 'middle'}>{l.text}</text>
+          ))}
+        </g>
+        <path class="area" d={c.area} />
+        <path class="line" d={c.line} />
+        {c.coords.map(([cx, cy], i) => (
+          <circle class="hit" cx={cx} cy={cy} r="9">
+            <title>{shortDay(pts[i]!.date)}: {price(pts[i]!.value)} {FUELS[f].unit}</title>
+          </circle>
+        ))}
+        <circle class="last" cx={lx} cy={ly} r="4.5" />
+      </svg>
+      <figcaption class="small muted">{summary}</figcaption>
+      <details class="chart-data">
+        <summary>Ver los datos en una tabla</summary>
+        <table>
+          <thead><tr><th scope="col">Día</th><th scope="col">Precio mediano ({FUELS[f].unit})</th></tr></thead>
+          <tbody>
+            {[...pts].reverse().map((p) => (
+              <tr><td>{shortDay(p.date)}</td><td class="num">{price(p.value)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
+    </figure>
+  );
+})}
+
+<style>
+  .chart {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 12px 12px;
+    box-shadow: var(--shadow);
+  }
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .grid line {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+  text {
+    fill: var(--muted);
+    font-size: 12px;
+    font-family: var(--font);
+    font-variant-numeric: tabular-nums;
+  }
+  .line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .area {
+    fill: var(--accent);
+    opacity: 0.1;
+  }
+  .hit {
+    fill: transparent;
+  }
+  .hit:hover {
+    fill: var(--accent);
+    fill-opacity: 0.25;
+  }
+  .last {
+    fill: var(--accent);
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+  figcaption {
+    margin-top: 8px;
+    padding: 0 4px;
+  }
+  .chart-data {
+    padding: 0 4px;
+    font-size: 0.875rem;
+  }
+  .chart-data summary {
+    cursor: pointer;
+    color: var(--muted);
+    padding: 6px 0;
+  }
+  .chart-data table {
+    border-collapse: collapse;
+    margin-top: 6px;
+  }
+  .chart-data th,
+  .chart-data td {
+    padding: 3px 14px 3px 0;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+</style>

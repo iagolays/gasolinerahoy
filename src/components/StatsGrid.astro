@@ -1,0 +1,86 @@
+---
+// Tarjetas con el precio medio, mínimo y máximo de cada carburante en un ámbito.
+import { FUELS, FUEL_ORDER } from '../lib/fuels';
+import type { StatsByFuel } from '../lib/types';
+import Price from './Price.astro';
+import Delta from './Delta.astro';
+import { int, price } from './util/format';
+
+interface Props {
+  stats: StatsByFuel;
+  /** Estadísticas con las que comparar la media (p. ej. las nacionales). */
+  reference?: StatsByFuel;
+  /** Texto de la comparación: "vs. España". */
+  refLabel?: string;
+}
+const { stats, reference, refLabel = '' } = Astro.props;
+const fuels = FUEL_ORDER.filter((f) => stats[f]);
+---
+<ul class="stats-grid">
+  {fuels.map((f) => {
+    const s = stats[f]!;
+    const ref = reference?.[f];
+    return (
+      <li class="stat">
+        <div class="stat-head">
+          <h3 class="stat-label">{FUELS[f].label}</h3>
+          {ref && <Delta value={s.avg} reference={ref.avg} suffix={refLabel} />}
+        </div>
+        <p class="stat-main"><Price value={s.avg} fuel={f} /><span class="visually-hidden"> de media</span></p>
+        <p class="stat-range">
+          <span>Mín. <strong class="num">{price(s.min)}</strong></span>
+          <span>Máx. <strong class="num">{price(s.max)}</strong></span>
+          <span>{int(s.count)} {s.count === 1 ? 'estación' : 'estaciones'}</span>
+        </p>
+      </li>
+    );
+  })}
+</ul>
+
+<style>
+  .stats-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 155px), 1fr));
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+  }
+  .stat-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .stat-label {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--muted);
+    font-weight: 650;
+  }
+  .stat-main {
+    margin: 4px 0 6px;
+    font-size: clamp(1.6rem, 1.3rem + 1.2vw, 2rem);
+    line-height: 1.1;
+  }
+  .stat-range {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .stat-range strong {
+    color: var(--ink);
+    font-weight: 650;
+  }
+</style>

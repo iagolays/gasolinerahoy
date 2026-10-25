@@ -1,0 +1,14 @@
+---
+// Precio con su unidad: "1,829 €/l". Grande y con cifras tabulares.
+import { FUELS } from '../lib/fuels';
+import type { FuelKey } from '../lib/types';
+import { price } from './util/format';
+
+interface Props {
+  value: number;
+  fuel: FuelKey;
+  class?: string;
+}
+const { value, fuel, class: cls } = Astro.props;
+---
+<span class:list={['price', cls]}>{price(value)}<span class="unit">{FUELS[fuel].unit}</span></span>

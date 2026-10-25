@@ -1,0 +1,18 @@
+---
+// Logotipo: gota con el símbolo del euro. Decorativo (el texto de la marca va al lado).
+interface Props {
+  size?: number;
+}
+const { size = 32 } = Astro.props;
+---
+<svg class="logo" aria-hidden="true" width={size} height={size} viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="16" fill="var(--accent)"></rect>
+  <path d="M32 12c-7 10-14 18.5-14 26a14 14 0 0 0 28 0c0-7.5-7-16-14-26Z" fill="var(--surface)"></path>
+  <path d="M27 41.5h10M27 36h9.5M38 32.5a7 7 0 1 0 0 12" stroke="var(--accent)" stroke-width="3" fill="none" stroke-linecap="round"></path>
+</svg>
+<style>
+  .logo {
+    flex-shrink: 0;
+    display: block;
+  }
+</style>
