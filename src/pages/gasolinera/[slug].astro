@@ -69,11 +69,14 @@ const textFuels = main.length ? main : fuels.slice(0, 1);
 const fullName = `${station.brand} en ${mName}`;
 const locality = station.locality && station.locality !== mName ? `${station.locality}, ${mName}` : mName;
 
-const title = `${station.brand} ${station.address}, ${mName}: precio de la gasolina hoy`;
-const description = `Precios de hoy en ${station.brand} (${station.address}, ${mName}, ${pName}): ${fuels
-  .slice(0, 3)
-  .map((f) => `${FUELS[f].label} ${priceU(station.prices[f]!, f)}`)
-  .join(', ')}. Horario, ubicación y gasolineras más baratas cerca.`;
+// Hay estaciones "gemelas" (misma marca y dirección, p. ej. una a cada lado de la carretera): el IDEESS
+// desempata para que title y description no se repitan.
+const twin = muniStations.some((s) => s.id !== station.id && s.brand === station.brand && s.address === station.address);
+const idTag = twin ? ` (nº ${station.id})` : '';
+const title = `${station.brand} en ${mName}, ${station.address}${idTag}: precios hoy`;
+const description = `Precios de hoy en ${station.brand}${idTag} (${station.address}, ${mName}): ${joinList(
+  fuels.slice(0, 3).map((f) => `${fuelName(f)} a ${priceU(station.prices[f]!, f)}`),
+)}. Horario, mapa y gasolineras más baratas cerca.`;
 const path = stationPath(station);
 const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lon}`;
 const osmUrl = `https://www.openstreetmap.org/?mlat=${station.lat}&mlon=${station.lon}#map=17/${station.lat}/${station.lon}`;
@@ -129,7 +132,7 @@ const osmUrl = `https://www.openstreetmap.org/?mlat=${station.lat}&mlon=${statio
     )}
   </section>
 
-  <AdSlot slot="top" />
+  <AdSlot position="top" />
 
   <section class="section" aria-labelledby="resumen">
     <h2 id="resumen">Resumen</h2>
@@ -179,7 +182,7 @@ const osmUrl = `https://www.openstreetmap.org/?mlat=${station.lat}&mlon=${statio
     </div>
   </section>
 
-  <AdSlot slot="inline" />
+  <AdSlot position="inline" />
 
   {fuels.length > 0 && (
     <section class="section" aria-labelledby="cerca">
@@ -200,7 +203,7 @@ const osmUrl = `https://www.openstreetmap.org/?mlat=${station.lat}&mlon=${statio
     </section>
   )}
 
-  <AdSlot slot="bottom" />
+  <AdSlot position="bottom" />
 </Base>
 
 <style>

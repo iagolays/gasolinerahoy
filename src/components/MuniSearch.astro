@@ -56,15 +56,20 @@ const { id = 'buscar-municipio' } = Astro.props;
       return items;
     };
 
+    // Cada pulsación lanza un render asíncrono; mientras se descarga el JSON pueden solaparse varios.
+    // Solo pinta el último (si no, salen resultados duplicados o de una búsqueda anterior).
+    let seq = 0;
     const render = async () => {
+      const mine = ++seq;
       const q = norm(input.value);
-      list.replaceChildren();
       if (q.length < 2) {
+        list.replaceChildren();
         status.textContent = '';
         return;
       }
       const all = await load();
-      if (!all) return;
+      if (mine !== seq || !all) return;
+      list.replaceChildren();
       const starts: Item[] = [];
       const contains: Item[] = [];
       for (const it of all) {

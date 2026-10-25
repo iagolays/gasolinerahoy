@@ -27,11 +27,39 @@ export function parseNum(value: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-/** Precio válido (> 0 y razonable) o undefined. */
-export function parsePrice(value: string | undefined): number | undefined {
+/**
+ * Límites de precio razonables por carburante (€/l, o €/kg en el GNC). Lo que queda fuera es un error al
+ * declarar el precio (p. ej. un AdBlue a 3,413 €/l) y se descarta ese precio, no la estación.
+ * Son amplios a propósito para no tener que tocarlos aunque los precios suban o bajen bastante:
+ * en octubre de 2026 la gasolina y el diésel van de ~1,29 (Canarias) a ~2,30, el GLP de 0,78 a 1,34,
+ * el GNC de 1,30 a 2,20 y el AdBlue de 0,50 a 2,46 (el envasado es más caro que el de surtidor).
+ */
+export const PRICE_LIMITS: Record<FuelKey, { min: number; max: number }> = {
+  gasolina95: { min: 0.8, max: 3 },
+  gasolina98: { min: 0.8, max: 3.2 },
+  diesel: { min: 0.8, max: 3 },
+  dieselPremium: { min: 0.8, max: 3.2 },
+  glp: { min: 0.4, max: 2 },
+  gnc: { min: 0.5, max: 3.5 },
+  adblue: { min: 0.3, max: 2.5 },
+};
+
+/** ¿Está el precio dentro de los límites razonables de ese carburante? */
+export function isPlausiblePrice(fuel: FuelKey, price: number): boolean {
+  const { min, max } = PRICE_LIMITS[fuel];
+  return price >= min && price <= max;
+}
+
+/**
+ * Precio válido o undefined. Sin carburante solo se exige que sea > 0 y no absurdo (≤ 20);
+ * con carburante se aplican sus límites (`PRICE_LIMITS`).
+ */
+export function parsePrice(value: string | undefined, fuel?: FuelKey): number | undefined {
   const n = parseNum(value);
   if (n === undefined || n <= 0 || n > 20) return undefined;
-  return Math.round(n * 1000) / 1000;
+  const p = Math.round(n * 1000) / 1000;
+  if (fuel && !isPlausiblePrice(fuel, p)) return undefined;
+  return p;
 }
 
 /** Desfase (en minutos) de Europe/Madrid respecto a UTC en un instante dado. */
@@ -152,10 +180,53 @@ const MARCAS: Record<string, string> = {
 };
 
 /** Prefijo "estación de servicio" en sus muchas grafías: "E.S.", "E.s", "EE.SS.", "EE SS"… */
-const PREFIJO_ES = /^(?:E\.\s?S\.?|EE\.\s?SS\.?|EE\s?SS\b|E\.S)\s*/i;
+const PREFIJO_ES = /^(?:E\.\s?S\.?|EE\.\s?SS\.?|EE\s?SS\b|E\.S|ES\.(?=\p{L}))\s*/iu;
 
-/** Siglas conocidas que se dejan en mayúsculas. */
-const SIGLAS = new Set(['BP', 'HAM', 'IDS', 'DST', 'MLC', 'BDMED', 'PCAN', 'ASC', 'TGT', 'GLP', 'GNC', 'E.S.', 'S.A.', 'S.L.', 'SL', 'SA', 'SAT', 'SCL', 'S.C.L.', 'S.COOP.', 'II', 'III']);
+/** Siglas conocidas que se dejan en mayúsculas (las de sociedad, "S.L.", "SA"…, se tratan aparte al final del rótulo). */
+const SIGLAS = new Set(['BP', 'HAM', 'IDS', 'DST', 'MLC', 'BDMED', 'PCAN', 'ASC', 'TGT', 'GLP', 'GNC', 'GNL', 'MD', 'SAT']);
+
+/** Números romanos de dos o más letras ("II", "IV", "XII"): siempre en mayúsculas. */
+const ROMANO = /^(?=[IVX]{2,}$)X{0,3}(?:IX|IV|V?I{0,3})$/;
+
+/** Abreviaturas con puntos internos: "E.S.", "U.S.", "S.L.U.", "J.A." (no "AV." ni "NTRA."). */
+const ABREVIATURA = /^\p{L}{1,2}(?:\.\p{L}{1,2})+\.?$/u;
+
+/**
+ * Forma jurídica al final del rótulo: "S.L.", "SL", "S,L.", "S.A.U", "S.C.A.", "C.B.", "S.COOP", "COOP.V."…
+ * El grupo 1 es el separador (para conservar la coma) y el 2, la sigla.
+ */
+const SOCIEDAD = /([\s,]+)(S[.,]?\s?[ALC]\.?(?:\s?[ALUT]\.?)?|C\.?\s?B\.?|A\.I\.E\.?|AIE|S\.?\s?COOP\.?|COOP\.?\s?V\.?)$/i;
+
+/** "s.a.u" → "S.A.U."; "SCOOP" → "S. Coop."; undefined si no es una forma jurídica segura ("SAL" sin puntos puede ser "sal"). */
+function formaJuridica(sigla: string): string | undefined {
+  const letras = sigla.toLocaleUpperCase('es').replace(/[^A-Z]/g, '');
+  if (letras === 'SCOOP') return 'S. Coop.';
+  if (letras === 'COOPV') return 'Coop. V.';
+  if (!/[.,]/.test(sigla) && ['SAL', 'SAT', 'SCL', 'SC'].includes(letras)) return undefined;
+  return letras.split('').join('.') + '.';
+}
+
+/** ¿Se deja en mayúsculas esta palabra de un rótulo? */
+function mayusculaEnMarca(w: string, { token, next }: { token: string; next?: string }): boolean {
+  if (SIGLAS.has(w) || ROMANO.test(w) || ABREVIATURA.test(w)) return true;
+  // "I" o "V" sueltas son romanos al final o antes de "-" o "(": "BALSILLAS I (REPSOL)", "AIREMAR I".
+  // En medio de dos palabras "I" es la conjunción catalana: "BIGUES I RIELLS".
+  const final = next === undefined || next === '-' || next.startsWith('(');
+  if ((w === 'I' || w === 'V') && final) return true;
+  // "MI"/"MD": margen izquierdo/derecho de una autovía, al final o entre paréntesis ("(MI)").
+  if (w === 'MI' && (final || token === '(MI)')) return true;
+  // Palabras de dos o más letras sin vocales: "TGM", "PCS", "MD".
+  return w.length >= 2 && !/[AEIOUÁÉÍÓÚÜY]/.test(w.replace(/\./g, ''));
+}
+
+/**
+ * Tras una sigla o un guion, el artículo que sigue empieza un nombre: "BP LA VEGA" → "BP La Vega",
+ * "U.S. EL TORO" → "U.S. El Toro", "REPSOL - LA LOMA" → "Repsol - La Loma" (pero "C.T. de San Vicente").
+ */
+function reinicioEnMarca(prev: string, next: string | undefined): boolean {
+  const articulo = /^(?:EL|LA|LOS|LAS|LES|ELS|SA|ES|SES|SON)$/.test(next ?? '');
+  return articulo && (prev === '-' || prev === '/' || SIGLAS.has(prev) || ABREVIATURA.test(prev));
+}
 
 /** Rótulos que no son una marca: "SIN RÓTULO", "S/R", "NO TIENE", "-", "SIN ASIGNAR"… */
 const SIN_ROTULO =
@@ -178,13 +249,33 @@ export function normalizeBrand(raw: string | undefined): string {
   const upper = limpio.toLocaleUpperCase('es');
   const especial = MARCAS[upper];
   if (especial) return especial;
+  // Marca especial seguida de más texto: "E.LECLERC LEON" → "E.Leclerc Leon".
+  const [primera, ...resto] = limpio.split(' ');
+  const especialInicio = MARCAS[primera!.toLocaleUpperCase('es')];
+  if (especialInicio && resto.length) {
+    const sigue = normalizeBrand(resto.join(' '));
+    return `${especialInicio} ${sigue === GENERIC_BRAND ? titleCase(resto.join(' ')) : sigue}`;
+  }
   const pref = limpio.match(PREFIJO_ES);
   if (pref && limpio.length > pref[0].length) {
     const resto = limpio.slice(pref[0].length);
     // "E.S. 2001" → genérica; "E.S. EL GORRION" → "E.S. El Gorrion"
     return isJunkBrand(resto) ? GENERIC_BRAND : `E.S. ${normalizeBrand(resto)}`;
   }
-  return titleCase(limpio, { keepUpper: (w) => SIGLAS.has(w) || (w.length >= 2 && !/[AEIOUÁÉÍÓÚÜY]/.test(w.replace(/\./g, ''))) });
+  // Forma jurídica final: se separa y se escribe en su forma canónica ("TARADELL,SL" → "Taradell, S.L.").
+  let texto = limpio;
+  let sufijo = '';
+  const soc = texto.match(SOCIEDAD);
+  const forma = soc && soc.index! > 0 ? formaJuridica(soc[2]!) : undefined;
+  if (soc && forma) {
+    texto = texto.slice(0, soc.index).trim();
+    sufijo = (soc[1]!.includes(',') ? ', ' : ' ') + forma;
+  }
+  texto = texto
+    .replace(/,(?=\p{L})/gu, ', ') // "ALSE,SL" → "ALSE, SL"
+    .replace(/(?<![\p{L}.])E\.S(?![.\p{L}])/gu, 'E.S.') // "E.S LA POCILLA" → "E.S. LA POCILLA"
+    .replace(/(?<=(?<!\p{L})\p{L}{1,4})\.(?=\p{L}{3,})/gu, '. '); // "E.S.BAELO" → "E.S. BAELO", "NTRA.SRA." → "NTRA. SRA."
+  return titleCase(texto, { keepUpper: mayusculaEnMarca, reinicio: reinicioEnMarca }) + sufijo;
 }
 
 /** Abreviaturas de tipo de vía al principio de la dirección. */
@@ -236,13 +327,13 @@ export function is24h(schedule: string): boolean {
 
 export interface BuildResult {
   dataset: Dataset;
-  /** Estaciones descartadas y por qué (para el resumen). */
-  skipped: { restricted: number; badCoords: number; noPrices: number };
+  /** Estaciones descartadas y por qué, y precios sueltos descartados por atípicos (para el resumen). */
+  skipped: { restricted: number; badCoords: number; noPrices: number; outlierPrices: number };
 }
 
 /** Normaliza la respuesta completa de la API. */
 export function buildDataset(raw: RawResponse): BuildResult {
-  const skipped = { restricted: 0, badCoords: 0, noPrices: 0 };
+  const skipped = { restricted: 0, badCoords: 0, noPrices: 0, outlierPrices: 0 };
   const updatedAt = parseApiDate(raw.Fecha);
 
   const provinces = new Map<string, Province>();
@@ -267,7 +358,9 @@ export function buildDataset(raw: RawResponse): BuildResult {
     const prices: Prices = {};
     for (const fuel of FUEL_ORDER) {
       const p = parsePrice(e[FUELS[fuel].apiField]);
-      if (p !== undefined) prices[fuel] = p;
+      if (p === undefined) continue;
+      if (isPlausiblePrice(fuel, p)) prices[fuel] = p;
+      else skipped.outlierPrices++; // precio atípico: se quita solo ese carburante
     }
     if (!Object.keys(prices).length) {
       skipped.noPrices++;

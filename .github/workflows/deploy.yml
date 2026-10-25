@@ -53,6 +53,7 @@ jobs:
           restore-keys: raw-
 
       - name: Descargar y procesar los datos
+        id: datos
         run: npm run data
 
       - name: Compilar la web
@@ -75,7 +76,12 @@ jobs:
           wranglerVersion: '4.149.0'
           command: pages deploy dist --project-name=${{ env.CF_PAGES_PROJECT }} --branch=main --commit-dirty=true
 
+      # Se ejecuta aunque falle el despliegue (p. ej. en la primera ejecución sin secrets de Cloudflare),
+      # para no perder el punto del día. El push con GITHUB_TOKEN no lanza otro workflow (GitHub lo impide)
+      # y además data/history/** está en paths-ignore: no hay bucle de despliegues.
+      # Si el archivo aún no existe en el repo (histórico vacío), se detecta como nuevo y se añade.
       - name: Guardar el histórico si ha cambiado
+        if: ${{ !cancelled() && steps.datos.outcome == 'success' }}
         run: |
           if git diff --quiet -- data/history/history.json && \
              [ -z "$(git ls-files --others --exclude-standard -- data/history/history.json)" ]; then

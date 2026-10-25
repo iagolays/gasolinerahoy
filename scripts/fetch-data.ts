@@ -132,6 +132,7 @@ async function main(): Promise<void> {
     `${dataset.stations.length} estaciones, ${dataset.municipalities.length} municipios, ${dataset.provinces.length} provincias` +
       ` (descartadas: ${skipped.restricted} de venta restringida, ${skipped.badCoords} sin coordenadas, ${skipped.noPrices} sin precios)`,
   );
+  if (skipped.outlierPrices) log(`Precios atípicos descartados (fuera de PRICE_LIMITS): ${skipped.outlierPrices}`);
   log(`stations.min.json: ${(min.length / 1024).toFixed(0)} KB (${(gzipSync(min, { level: 9 }).length / 1024).toFixed(0)} KB gzip)`);
   log(added ? `Histórico: añadido el punto ${point.date} (${history.length} días)` : `Histórico: ya había punto para ${point.date}`);
 }

@@ -33,7 +33,12 @@ function capitalizar(palabra: string): string {
 
 export interface TitleCaseOptions {
   /** Palabras que se dejan tal cual si aparecen (p. ej. siglas como "BP"). */
-  keepUpper?: (word: string) => boolean;
+  keepUpper?: (word: string, ctx: { token: string; next?: string }) => boolean;
+  /**
+   * ¿La palabra `next` que sigue a `prev` (las dos en mayúsculas) cuenta como inicio? Entonces no se pasa a
+   * minúscula aunque sea un conector: "BP LA VEGA" → "BP La Vega" en vez de "BP la Vega".
+   */
+  reinicio?: (prev: string, next: string | undefined) => boolean;
 }
 
 /**
@@ -44,17 +49,17 @@ export function titleCase(text: string, opts: TitleCaseOptions = {}): string {
   const limpio = text.replace(/\s+/g, ' ').trim();
   if (!limpio) return '';
   let primera = true;
-  return limpio
-    .split(' ')
-    .map((token) => {
-      const res = titleToken(token, primera, opts);
-      primera = false;
+  const tokens = limpio.split(' ');
+  return tokens
+    .map((token, i) => {
+      const res = titleToken(token, tokens[i + 1]?.toLocaleUpperCase('es'), primera, opts);
+      primera = opts.reinicio?.(token.toLocaleUpperCase('es'), tokens[i + 1]?.toLocaleUpperCase('es')) ?? false;
       return res;
     })
     .join(' ');
 }
 
-function titleToken(token: string, primera: boolean, opts: TitleCaseOptions): string {
+function titleToken(token: string, next: string | undefined, primera: boolean, opts: TitleCaseOptions): string {
   // Separamos signos de puntuación iniciales y finales: "(LA)," → "(" + "LA" + "),"
   const m = token.match(/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}.]*)$/u);
   const [, pre = '', palabra = '', post = ''] = m ?? [];
@@ -64,10 +69,10 @@ function titleToken(token: string, primera: boolean, opts: TitleCaseOptions): st
   if (/\d/.test(palabra)) return pre + upper.replace(/KM/g, 'km') + post;
   const lower = palabra.toLocaleLowerCase('es');
   if (lower === 'km' || lower === 'km.') return pre + lower + post;
-  if (opts.keepUpper?.(upper)) return pre + upper + post;
+  if (opts.keepUpper?.(upper, { token: token.toLocaleUpperCase('es'), next })) return pre + upper + post;
   if (!primera && !pre && MINUSCULAS.has(lower)) return pre + lower + post;
-  // Palabras compuestas con guion o barra: "castilla-la" → "Castilla-La"
-  return pre + palabra.split(/([-/])/).map((p) => (p === '-' || p === '/' ? p : capitalizar(p))).join('') + post;
+  // Palabras compuestas con guion, barra o paréntesis: "castilla-la" → "Castilla-La", "bencir(ikea" → "Bencir(Ikea"
+  return pre + palabra.split(/([-/(])/).map((p) => (/^[-/(]$/.test(p) ? p : capitalizar(p))).join('') + post;
 }
 
 /** Artículos que la API pone al final entre paréntesis: "Palmas (Las)", "Alfàs del Pi (l')". */

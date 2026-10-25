@@ -15,11 +15,14 @@ import {
   getProvinces,
   getStations,
   getUpdatedAt,
+  hasOwnFuelTaxes,
+  isPeninsular,
   nationalHistory,
   nationalStats,
   provincePath,
   provinceStats,
   stationPath,
+  statsFor,
 } from '../lib/data';
 import { FUEL_ORDER } from '../lib/fuels';
 import type { FuelKey } from '../lib/types';
@@ -32,23 +35,30 @@ const national = nationalStats();
 const fuels = FUEL_ORDER.filter((f) => national[f]);
 const updatedAt = getUpdatedAt();
 
+// Dos rankings: el de la península (lo que le sirve a la mayoría) y el de toda España, que copan
+// Canarias, Ceuta y Melilla porque tienen impuestos más bajos sobre los carburantes.
+const peninsular = stations.filter((s) => isPeninsular(s.provinceId));
+const peninsularStats = statsFor(peninsular);
 const rankings: Partial<Record<FuelKey, ReturnType<typeof cheapest>>> = {};
-for (const f of fuels) rankings[f] = cheapest(stations, f, 10);
+const peninsularRankings: Partial<Record<FuelKey, ReturnType<typeof cheapest>>> = {};
+for (const f of fuels) {
+  rankings[f] = cheapest(stations, f, 10);
+  if (peninsularStats[f]) peninsularRankings[f] = cheapest(peninsular, f, 10);
+}
 
 const provinces = getProvinces().map((p) => ({ p, stats: provinceStats(p.id) }));
 const series = Object.fromEntries(fuels.map((f) => [f, nationalHistory(f)]));
 
 // ── Texto generado ──
-const LOW_TAX = new Set(['35', '38', '51', '52']); // Canarias, Ceuta y Melilla
 function provExtremes(f: FuelKey) {
   const withFuel = provinces.filter((x) => x.stats[f] && x.stats[f]!.count >= 3);
   withFuel.sort((a, b) => a.stats[f]!.avg - b.stats[f]!.avg);
-  return { low: withFuel[0], high: withFuel[withFuel.length - 1], peninsular: withFuel.find((x) => !LOW_TAX.has(x.p.id) && !['07'].includes(x.p.id)) };
+  return { low: withFuel[0], high: withFuel[withFuel.length - 1], peninsular: withFuel.find((x) => isPeninsular(x.p.id)) };
 }
 const cheapestLines = (['gasolina95', 'diesel'] as FuelKey[])
-  .filter((f) => rankings[f]?.[0])
+  .filter((f) => peninsularRankings[f]?.[0])
   .map((f) => {
-    const s = rankings[f]![0]!;
+    const s = peninsularRankings[f]![0]!;
     const pl = placeOf(s);
     return { f, s, pl };
   });
@@ -67,8 +77,8 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
     websiteLd(),
     datasetLd(updatedAt.toISOString()),
     itemListLd(
-      'Gasolineras más baratas de España (gasolina 95)',
-      (rankings.gasolina95 ?? []).map((s) => ({ name: `${s.brand} (${placeOf(s).municipality})`, path: stationPath(s) })),
+      'Gasolineras más baratas de la península (gasolina 95)',
+      (peninsularRankings.gasolina95 ?? []).map((s) => ({ name: `${s.brand} (${placeOf(s).municipality})`, path: stationPath(s) })),
     ),
   ]}
 >
@@ -98,7 +108,7 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
     </div>
   </section>
 
-  <AdSlot slot="top" />
+  <AdSlot position="top" />
 
   <section class="section" aria-labelledby="medias">
     <h2 id="medias">Precio medio por carburante</h2>
@@ -113,9 +123,9 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
         <p>
           {cheapestLines.map(({ f, s, pl }, i) => (
             <>
-              {i === 0 ? cap(theFuel(f)) : ` ${cap(theFuel(f))}`} más barat{f.startsWith('gasolina') ? 'a' : 'o'} de España está en{' '}
+              {i === 0 ? cap(theFuel(f)) : ` ${cap(theFuel(f))}`} más barat{f.startsWith('gasolina') ? 'a' : 'o'} de la península está en{' '}
               <a href={stationPath(s)}>{s.brand}</a> de <a href={pl.municipalityPath}>{pl.municipality}</a> ({pl.province}), a{' '}
-              {priceU(s.prices[f]!, f)}, {vsAvg(s.prices[f]!, national[f]!.avg, 'España')}.
+              {priceU(s.prices[f]!, f)}, {vsAvg(s.prices[f]!, peninsularStats[f]!.avg, 'la península')}.
             </>
           ))}
         </p>
@@ -125,7 +135,7 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
           Por provincias, la gasolina 95 más barata de media está en <a href={provincePath(e95.low.p)}>{e95.low.p.name}</a>
           {' '}({priceU(e95.low.stats.gasolina95!.avg, 'gasolina95')}) y la más cara en{' '}
           <a href={provincePath(e95.high.p)}>{e95.high.p.name}</a> ({priceU(e95.high.stats.gasolina95!.avg, 'gasolina95')}).
-          {LOW_TAX.has(e95.low.p.id) && e95.peninsular && (
+          {hasOwnFuelTaxes(e95.low.p.id) && e95.peninsular && (
             <>
               {' '}Canarias, Ceuta y Melilla suelen salir más baratas porque sus impuestos sobre los carburantes son más bajos; en la
               península la más barata es <a href={provincePath(e95.peninsular.p)}>{e95.peninsular.p.name}</a>
@@ -146,12 +156,22 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
   </section>
 
   <section class="section" aria-labelledby="baratas">
-    <h2 id="baratas">Las 10 gasolineras más baratas de España</h2>
+    <h2 id="baratas">Las 10 gasolineras más baratas de la península</h2>
+    <p class="section-sub">Sin Canarias, Ceuta, Melilla ni Baleares. Comparadas con la media peninsular.</p>
     <FuelTabs fuels={fuels} sticky />
+    <Ranking rankings={peninsularRankings} reference={peninsularStats} refLabel="vs. península" place="full" />
+  </section>
+
+  <section class="section" aria-labelledby="baratas-espana">
+    <h2 id="baratas-espana">Las 10 más baratas de toda España</h2>
+    <p class="section-sub">
+      Incluye Canarias, Ceuta y Melilla, que suelen copar la lista porque sus impuestos sobre los carburantes son más bajos.
+    </p>
+    <FuelTabs fuels={fuels} />
     <Ranking rankings={rankings} reference={national} refLabel="vs. España" place="full" />
   </section>
 
-  <AdSlot slot="inline" />
+  <AdSlot position="inline" />
 
   <section class="section" aria-labelledby="historico">
     <h2 id="historico">Evolución del precio en España</h2>
@@ -159,7 +179,7 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
     <HistoryChart series={series} scope="en España" />
   </section>
 
-  <section class="section" aria-labelledby="provincias" id="provincias">
+  <section class="section" aria-labelledby="provincias-t" id="provincias">
     <h2 id="provincias-t">Precios por provincia</h2>
     <p class="section-sub">Precio medio del carburante seleccionado en cada provincia. Entra para ver todos sus municipios.</p>
     <FuelTabs fuels={fuels} />
@@ -179,7 +199,7 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
     </ul>
   </section>
 
-  <AdSlot slot="bottom" />
+  <AdSlot position="bottom" />
 </Base>
 
 <style is:global>

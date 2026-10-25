@@ -13,6 +13,7 @@ import {
   getMunicipalitiesOf,
   getProvinces,
   getStationsOfProvince,
+  hasOwnFuelTaxes,
   municipalityPath,
   municipalityStats,
   nationalStats,
@@ -99,7 +100,7 @@ const path = provincePath(province);
     </p>
   </header>
 
-  <AdSlot slot="top" />
+  <AdSlot position="top" />
 
   <section class="section" aria-labelledby="medias">
     <h2 id="medias">Precio medio en {name}</h2>
@@ -107,12 +108,19 @@ const path = provincePath(province);
     <div class="prose summary">
       <p>
         En la provincia de {name} hay {plural(stations.length, 'gasolinera', 'gasolineras')} con precios publicados,
-        repartidas en {plural(munis.length, 'municipio', 'municipios')}{topMuni && topMuni.n > 1 && <> ; el que más tiene es <a href={municipalityPath(topMuni.m)}>{topMuni.m.name}</a>, con {int(topMuni.n)}</>}.
+        repartidas en {plural(munis.length, 'municipio', 'municipios')}{topMuni && topMuni.n > 1 && <>; el que más tiene es <a href={municipalityPath(topMuni.m)}>{topMuni.m.name}</a>, con {int(topMuni.n)}</>}.
         {main.length > 0 && <> De media, {avgList(stats)}.</>}
         {main.map((f) => (
           <> {cap(theFuel(f))} está {vsAvg(stats[f]!.avg, national[f]!.avg, 'España')}.</>
         ))}
       </p>
+      {hasOwnFuelTaxes(province.id) && (
+        <p>
+          {['51', '52'].includes(province.id) ? name : `Como toda Canarias, ${name}`} tiene una fiscalidad propia sobre los
+          carburantes, con impuestos más bajos que en la península, así que es normal que sus precios queden por debajo de la
+          media de España. Para comparar, fíjate sobre todo en las diferencias entre gasolineras de la misma zona.
+        </p>
+      )}
       {main.some((f) => ranks[f]) && (
         <p>
           {name} es la {main.filter((f) => ranks[f]).map((f, i) => (
@@ -148,7 +156,7 @@ const path = provincePath(province);
     <Ranking rankings={rankings} reference={stats} refLabel={`vs. ${name}`} place="municipality" />
   </section>
 
-  <AdSlot slot="inline" />
+  <AdSlot position="inline" />
 
   <section class="section" aria-labelledby="municipios">
     <h2 id="municipios">Municipios de {name}</h2>
@@ -173,5 +181,5 @@ const path = provincePath(province);
     <HistoryChart series={series} scope={`en ${name}`} />
   </section>
 
-  <AdSlot slot="bottom" />
+  <AdSlot position="bottom" />
 </Base>

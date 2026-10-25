@@ -167,6 +167,22 @@ export function provincePath(province: Province): string {
   return `/provincia/${province.slug}/`;
 }
 
+/**
+ * Provincias con fiscalidad propia sobre los carburantes (impuestos más bajos que en la península):
+ * Las Palmas y Santa Cruz de Tenerife (Canarias), Ceuta y Melilla. Sus precios no son comparables con los peninsulares.
+ */
+export const OWN_TAX_PROVINCE_IDS: ReadonlySet<string> = new Set(['35', '38', '51', '52']);
+
+/** ¿Tiene la provincia fiscalidad propia (Canarias, Ceuta o Melilla)? */
+export function hasOwnFuelTaxes(provinceId: string): boolean {
+  return OWN_TAX_PROVINCE_IDS.has(provinceId);
+}
+
+/** ¿Está en la península? (fuera Canarias, Ceuta, Melilla e Illes Balears). */
+export function isPeninsular(provinceId: string): boolean {
+  return !hasOwnFuelTaxes(provinceId) && provinceId !== '07';
+}
+
 /** Ruta de un municipio: "/provincia/albacete/abengibre/". */
 export function municipalityPath(muni: Municipality): string {
   const prov = getProvinceById(muni.provinceId);

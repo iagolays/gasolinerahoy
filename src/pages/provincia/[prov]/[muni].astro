@@ -66,10 +66,14 @@ const cheaperNear = mainFuel
   : undefined;
 const brands = [...new Set(stations.map((s) => s.brand))];
 
-const title = `Gasolineras en ${name} (${pName}): precios de hoy`;
+// "Madrid (Madrid)" sobra: si el municipio se llama como la provincia no se repite.
+const where = name === pName ? name : `${name} (${pName})`;
+const title = `Gasolineras en ${where}: precios de hoy`;
+// Frase de precios solo si hay gasolina 95 o diésel (hay municipios con una sola estación de GLP o AdBlue).
+const priceBits = (fmt: (f: FuelKey) => string) => (main.length ? ` ${cap(joinList(main.map(fmt)))}.` : '');
 const description = only
-  ? `Precios de hoy en la gasolinera de ${name} (${pName}): ${only.brand}, ${only.address}. ${main.map((f) => `${cap(fuelName(f))} a ${priceU(only.prices[f]!, f)}`).join(', ')}.`
-  : `Compara las ${n} gasolineras de ${name} (${pName}). ${main.map((f) => `${cap(fuelName(f))} desde ${priceU(stats[f]!.min, f)}`).join(', ')}. Precios oficiales actualizados cada hora.`;
+  ? `Precios de hoy en la gasolinera de ${where}: ${only.brand}, ${only.address}.${priceBits((f) => `${fuelName(f)} a ${priceU(only.prices[f]!, f)}`)}`
+  : `Compara las ${n} gasolineras de ${where}.${priceBits((f) => `${fuelName(f)} desde ${priceU(stats[f]!.min, f)}`)} Precios oficiales actualizados cada hora.`;
 const path = municipalityPath(muni);
 ---
 <Base
@@ -94,7 +98,7 @@ const path = municipalityPath(muni);
     </p>
   </header>
 
-  <AdSlot slot="top" />
+  <AdSlot position="top" />
 
   <section class="section" aria-labelledby="precios">
     <h2 id="precios">{only ? `Precios en ${only.brand}` : `Todas las gasolineras de ${name}`}</h2>
@@ -140,7 +144,7 @@ const path = municipalityPath(muni);
     <MapView stations={stations} label={`Mapa de gasolineras de ${name}`} height={n > 1 ? 420 : 320} maxZoom={n > 1 ? 15 : 14} />
   </section>
 
-  <AdSlot slot="inline" />
+  <AdSlot position="inline" />
 
   <section class="section" aria-labelledby="estadisticas">
     <h2 id="estadisticas">Precio medio en {name}</h2>
@@ -167,5 +171,5 @@ const path = municipalityPath(muni);
     </section>
   )}
 
-  <AdSlot slot="bottom" />
+  <AdSlot position="bottom" />
 </Base>

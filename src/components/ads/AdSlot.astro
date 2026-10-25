@@ -1,38 +1,36 @@
 ---
 // Hueco de anuncio de AdSense (bloque adaptable).
 // - Sin SITE.adsenseClient no pinta nada (ni ocupa espacio).
-// - Con cliente, reserva una altura mínima para evitar CLS cuando carga el anuncio.
+// - Con cliente, el bloque tiene una altura FIJA por hueco y tamaño de pantalla (método de AdSense para
+//   "bloques adaptables con tamaño exacto"): el anuncio que llegue se ajusta a ese hueco y la página
+//   no salta (CLS = 0). Con `data-ad-format="auto"` y solo una altura mínima, AdSense puede servir un
+//   anuncio más alto que el hueco reservado y empujar el contenido.
 // La CMP de Google ("Privacidad y mensajes") gestiona el consentimiento: adsbygoogle.js
 // no sirve anuncios personalizados sin él, así que aquí no hay que hacer nada más.
 import { SITE } from '../../site.config';
 
 interface Props {
-  slot: 'top' | 'inline' | 'bottom';
+  // OJO: no se puede llamar `slot`. En Astro `slot="..."` es un atributo reservado que manda el
+  // componente a un slot con nombre del padre; como el layout no lo tiene, el anuncio no se pintaba.
+  position: 'top' | 'inline' | 'bottom';
 }
 
-const { slot } = Astro.props;
+const { position } = Astro.props;
 const client: string = SITE.adsenseClient;
 
 // IDs de bloque de anuncio (data-ad-slot) creados en AdSense > Anuncios > Por bloque de anuncio.
 // Si se dejan vacíos se usa el bloque sin data-ad-slot, válido con anuncios automáticos.
-const AD_UNITS: Record<Props['slot'], string> = {
+const AD_UNITS: Record<Props['position'], string> = {
   top: '',
   inline: '',
   bottom: '',
 };
-const unit = AD_UNITS[slot];
+const unit = AD_UNITS[position];
 ---
 {client && (
-  <aside class={`ad ad--${slot}`} aria-label="Publicidad">
+  <aside class={`ad ad--${position}`} aria-label="Publicidad">
     <span class="ad__label">Publicidad</span>
-    <ins
-      class="adsbygoogle"
-      style="display:block"
-      data-ad-client={client}
-      data-ad-slot={unit || undefined}
-      data-ad-format="auto"
-      data-full-width-responsive="true"
-    ></ins>
+    <ins class="adsbygoogle" data-ad-client={client} data-ad-slot={unit || undefined}></ins>
     <script is:inline>(window.adsbygoogle = window.adsbygoogle || []).push({});</script>
   </aside>
 )}
@@ -52,20 +50,22 @@ const unit = AD_UNITS[slot];
     opacity: 0.6;
     margin-bottom: 0.25rem;
   }
-  /* Altura reservada (evita CLS). Los adaptables en móvil suelen medir 50–280 px. */
+  /* Tamaño exacto del bloque (sin data-ad-format, como pide AdSense para fijar el tamaño): evita CLS. */
   .ad .adsbygoogle {
-    min-height: 280px;
+    display: inline-block;
+    width: 100%;
+    height: 280px;
   }
   .ad--top .adsbygoogle {
-    min-height: 100px;
+    height: 100px;
   }
   @media (min-width: 768px) {
     .ad--top .adsbygoogle {
-      min-height: 90px;
+      height: 90px;
     }
     .ad--inline .adsbygoogle,
     .ad--bottom .adsbygoogle {
-      min-height: 250px;
+      height: 250px;
     }
   }
   /* No plegamos los huecos "unfilled": hacerlo después de pintar provocaría CLS. */

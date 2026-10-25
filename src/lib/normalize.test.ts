@@ -5,6 +5,7 @@ import {
   buildStationsMin,
   is24h,
   isJunkBrand,
+  isPlausiblePrice,
   madridDate,
   mergeHistory,
   normalizeAddress,
@@ -12,8 +13,10 @@ import {
   parseApiDate,
   parseNum,
   parsePrice,
+  PRICE_LIMITS,
   type RawStation,
 } from '../../scripts/normalize';
+import { FUEL_ORDER } from './fuels';
 import { decodeStationsMin } from './stations-min';
 import { GENERIC_BRAND, brandSlug } from './slug';
 
@@ -69,6 +72,32 @@ describe('marcas, direcciones y horarios', () => {
     expect(normalizeBrand('E.S. EL GORRION')).toBe('E.S. El Gorrion');
     expect(normalizeBrand('ESCLATOIL')).toBe('EsclatOil');
   });
+  it('respeta números romanos sin confundir la "i" catalana', () => {
+    expect(normalizeBrand('BALSILLAS I (REPSOL)')).toBe('Balsillas I (Repsol)');
+    expect(normalizeBrand('AIREMAR I')).toBe('Airemar I');
+    expect(normalizeBrand('BP ALGEMESI I - SAN CRISTOBAL')).toBe('BP Algemesi I - San Cristobal');
+    expect(normalizeBrand('BP PEDRO IV')).toBe('BP Pedro IV');
+    expect(normalizeBrand('SHELL ALFONSO XIII')).toBe('Shell Alfonso XIII');
+    expect(normalizeBrand('ESTACIO SERVEI BIGUES I RIELLS')).toBe('Estacio Servei Bigues i Riells');
+  });
+  it('respeta siglas, abreviaturas y formas jurídicas', () => {
+    expect(normalizeBrand('BP LA VEGA DE ANTEQUERA')).toBe('BP La Vega de Antequera');
+    expect(normalizeBrand('BP AP7 BELLATERRA (MI)')).toBe('BP AP7 Bellaterra (MI)');
+    expect(normalizeBrand('BP SANDOVAL MI')).toBe('BP Sandoval MI');
+    expect(normalizeBrand('AVIA U.S. LA AGUILERA')).toBe('Avia U.S. La Aguilera');
+    expect(normalizeBrand('REPSOL E.S.MILA HERMANOS REDONDO S.L.')).toBe('Repsol E.S. Mila Hermanos Redondo S.L.');
+    expect(normalizeBrand('AREA DE SERVEIS TARADELL,SL')).toBe('Area de Serveis Taradell, S.L.');
+    expect(normalizeBrand('BALTRAN S.A')).toBe('Baltran S.A.');
+    expect(normalizeBrand('CEPSA OPER CANARIOS S,L.')).toBe('Cepsa Oper Canarios S.L.');
+    expect(normalizeBrand('MOEVE COMERCIAL SAU')).toBe('Moeve Comercial S.A.U.');
+    expect(normalizeBrand('FRESAFLOR, S.C.A.')).toBe('Fresaflor, S.C.A.');
+    expect(normalizeBrand('CHESTE AGRARIA COOP.V.')).toBe('Cheste Agraria Coop. V.');
+    expect(normalizeBrand('SAT LA CAÑA')).toBe('SAT La Caña');
+    expect(normalizeBrand('BP SA POBLA')).toBe('BP Sa Pobla');
+    expect(normalizeBrand('C.T. DE SAN VICENTE')).toBe('C.T. de San Vicente');
+    expect(normalizeBrand('E.LECLERC LEON')).toBe('E.Leclerc Leon');
+    expect(normalizeBrand('LA SAL')).toBe('La Sal');
+  });
   it('normaliza direcciones', () => {
     expect(normalizeAddress('AVDA. DE ESPAÑA, S/N')).toBe('Avenida de España, S/N');
     expect(normalizeAddress('CR N-322, 337,8')).toBe('Carretera N-322, 337,8');
@@ -109,6 +138,36 @@ describe('rótulos basura', () => {
     });
     expect(dataset.stations[0]).toMatchObject({ brand: GENERIC_BRAND, slug: 'gasolinera-camargo-11849' });
     expect(decodeStationsMin(buildStationsMin(dataset))[0]!.url).toBe('/gasolinera/gasolinera-camargo-11849/');
+  });
+});
+
+describe('precios atípicos', () => {
+  it('cada carburante tiene límites coherentes', () => {
+    for (const f of FUEL_ORDER) expect(PRICE_LIMITS[f].min).toBeLessThan(PRICE_LIMITS[f].max);
+  });
+  it('descarta valores imposibles según el carburante', () => {
+    expect(parsePrice('3,413', 'adblue')).toBeUndefined();
+    expect(parsePrice('0,499', 'adblue')).toBe(0.499);
+    expect(parsePrice('0,499', 'diesel')).toBeUndefined();
+    expect(parsePrice('0,781', 'glp')).toBe(0.781);
+    expect(parsePrice('2,199', 'gnc')).toBe(2.199);
+    expect(parsePrice('9,999', 'gasolina95')).toBeUndefined();
+    expect(parsePrice('1,289', 'gasolina95')).toBe(1.289);
+    expect(isPlausiblePrice('diesel', 1.829)).toBe(true);
+    expect(isPlausiblePrice('glp', 2.5)).toBe(false);
+  });
+  it('quita solo el precio atípico, no la estación', () => {
+    const { dataset, skipped } = buildDataset({
+      Fecha: '26/10/2026 0:18:58',
+      ListaEESSPrecio: [
+        raw({ 'Precio Adblue': '3,413' }),
+        raw({ IDEESS: '9', 'Precio Gasolina 95 E5': '0,100', 'Precio Gasoleo A': '' }), // solo un precio y atípico: fuera
+      ],
+    });
+    expect(skipped.outlierPrices).toBe(2);
+    expect(skipped.noPrices).toBe(1);
+    expect(dataset.stations).toHaveLength(1);
+    expect(dataset.stations[0]!.prices).toEqual({ gasolina95: 1.699, diesel: 1.829 });
   });
 });
 
