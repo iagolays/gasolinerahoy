@@ -94,7 +94,7 @@ Las URL `*.workers.dev` se sirven con `X-Robots-Tag: noindex` (ver `public/_head
 ### 5. Solicitar AdSense
 
 Antes de solicitarlo:
-- Rellena los datos del titular en las páginas legales: busca y sustituye `[NOMBRE]`, `[NIF]`, `[DOMICILIO]` y `[EMAIL]` en `src/pages/aviso-legal.astro`, `privacidad.astro`, `cookies.astro` y `acerca.astro`. Usa un correo que leas.
+- Datos del titular ya rellenados en `aviso-legal`, `privacidad` y `cookies` (2026-10-26).
 - Espera a que el dominio propio lleve unos días funcionando e indexándose.
 
 Después:
