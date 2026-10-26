@@ -1,7 +1,7 @@
 // Configuración global del sitio. Cambiar aquí el nombre y el dominio definitivos.
 export const SITE = {
-  name: 'RepostaBarato',
-  url: 'https://repostabarato.es', // provisional, sin dominio comprado
+  name: 'GasolineraHoy',
+  url: 'https://gasolinerahoy.es', // dominio elegido (2026-10-26), pendiente de comprar
   lang: 'es-ES',
   description:
     'Precios de la gasolina y el diésel en todas las gasolineras de España, actualizados cada hora con datos oficiales del Ministerio.',

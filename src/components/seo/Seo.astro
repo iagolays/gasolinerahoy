@@ -28,7 +28,7 @@ function canonicalPath(p: string): string {
 const canonical = new URL(canonicalPath(path), SITE.url).href;
 // Las páginas de error (/404.html) no llevan canonical: no son una URL real del sitio.
 const isErrorPage = /\.html$/i.test(path);
-// Evita "RepostaBarato | RepostaBarato" en la portada.
+// Evita "GasolineraHoy | GasolineraHoy" en la portada.
 const fullTitle = title.includes(SITE.name) ? title : `${title} | ${SITE.name}`;
 // Imagen para redes (1200×630). Solo se enlaza si existe public/og.png.
 const ogImage = existsSync('public/og.png') ? new URL('/og.png', SITE.url).href : null;

@@ -1,4 +1,4 @@
-# Plan de trabajo — RepostaBarato
+# Plan de trabajo — GasolineraHoy
 
 Web estática (Astro 7) con los precios de todas las gasolineras de España. Los datos salen de la API oficial del Ministerio, se regeneran cada hora (GitHub Actions) y se publican en Cloudflare Pages. Se monetiza con AdSense.
 
