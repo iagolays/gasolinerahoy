@@ -1,4 +1,4 @@
-# Cabeceras de Cloudflare Pages (https://developers.cloudflare.com/pages/configuration/headers/).
+# Cabeceras de Cloudflare Workers Static Assets (https://developers.cloudflare.com/workers/static-assets/headers/).
 # Si una petición encaja en varias reglas se suman sus cabeceras; "! Cabecera" quita la heredada.
 
 # Por defecto (HTML): siempre se revalida, porque los precios cambian cada hora.
@@ -39,8 +39,6 @@
   ! Cache-Control
   Cache-Control: public, max-age=3600
 
-# Las URL de despliegue (*.pages.dev) no deben indexarse: solo el dominio propio.
-https://:project.pages.dev/*
-  X-Robots-Tag: noindex
-https://:version.:project.pages.dev/*
+# Las URL de despliegue (*.workers.dev) no deben indexarse: solo el dominio propio.
+https://:version.:subdomain.workers.dev/*
   X-Robots-Tag: noindex

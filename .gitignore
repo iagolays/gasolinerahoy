@@ -27,3 +27,6 @@ pnpm-debug.log*
 data/raw/
 src/data/generated/
 public/data/stations.min.json
+
+# wrangler
+.wrangler/

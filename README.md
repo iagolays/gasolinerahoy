@@ -61,25 +61,24 @@ Todo lo de abajo se hace una sola vez. Calcula una tarde, más los días de espe
 
 > GitHub desactiva los workflows programados de repositorios públicos tras 60 días sin actividad. El commit diario del histórico lo evita, pero si ves que se para, reactívalo en la pestaña **Actions**.
 
-### 2. Crear el proyecto en Cloudflare Pages
+### 2. Desplegar en Cloudflare Workers (archivos estáticos)
+
+Cloudflare Pages ahora se integra en Workers: la web se publica como un Worker que solo sirve archivos estáticos (`wrangler.jsonc`, sin código de servidor). El límite del plan gratuito es de 20.000 archivos por versión y 25 MiB por archivo.
 
 1. Crea una cuenta gratuita en [Cloudflare](https://dash.cloudflare.com/sign-up).
-2. **Workers y Pages → Crear → Pages → Subir recursos (Direct Upload)**. Ponle de nombre `gasolinerahoy` (si eliges otro, crea en GitHub la variable del repositorio `CF_PAGES_PROJECT` con ese nombre: **Settings → Secrets and variables → Actions → Variables**). Puedes subir cualquier carpeta para crearlo; el primer despliegue real lo hará el workflow.
-   - No conectes el repositorio con la integración de Git de Cloudflare: los despliegues los hace GitHub Actions, que es quien descarga los datos cada hora.
-3. Crea un **token de API**: *Mi perfil → Tokens de API → Crear token → Plantilla personalizada* con el permiso **Cuenta → Cloudflare Pages → Editar**, limitado a tu cuenta.
-4. Copia tu **Account ID** (aparece en la barra lateral de *Workers y Pages* o en la URL del panel).
-5. En GitHub, **Settings → Secrets and variables → Actions → New repository secret**, crea:
-   - `CLOUDFLARE_API_TOKEN` = el token.
-   - `CLOUDFLARE_ACCOUNT_ID` = el Account ID.
-6. Lanza el despliegue a mano: **Actions → Desplegar → Run workflow**. Al terminar, la web estará en `https://gasolinerahoy.pages.dev`. Desde entonces se redespliega sola cada hora (minuto 17) y en cada push a `main`.
+2. Primer despliegue desde tu ordenador: `npx wrangler login`, después `npm run data && npm run build` y por último `npx wrangler deploy`. Así se crea el Worker `gasolinerahoy`. **No uses `wrangler pages project create`**: intenta reconfigurar el proyecto con `astro add cloudflare` (SSR), y aquí no hace falta.
+3. Crea un **token de API**: *icono de perfil → Profile → API Tokens → Create Token → Custom token*, con el permiso **Account → Workers Scripts → Edit**, limitado a tu cuenta.
+4. Copia tu **Account ID**: es la cadena larga que aparece en la URL del panel.
+5. Guarda los dos valores como secrets de GitHub Actions (`gh secret set CLOUDFLARE_API_TOKEN` y `gh secret set CLOUDFLARE_ACCOUNT_ID`).
+6. Desde entonces, el workflow despliega solo cada hora (en el minuto 17) y en cada push a `main`. También se puede lanzar a mano en **Actions → Desplegar → Run workflow**.
 
-Las URL `*.pages.dev` se sirven con `X-Robots-Tag: noindex` (ver `public/_headers`) para que Google solo indexe el dominio propio.
+Las URL `*.workers.dev` se sirven con `X-Robots-Tag: noindex` (ver `public/_headers`), para que Google solo indexe el dominio propio.
 
 ### 3. Comprar el dominio y conectarlo
 
 1. Compra el dominio (p. ej. `gasolinerahoy.es`). La forma más sencilla es **Cloudflare Registrar** (*Gestión de dominios → Registrar dominios*), a precio de coste; ten en cuenta que Cloudflare Registrar no vende todos los TLD (para `.es` puede que tengas que usar otro registrador como DonDominio, Arsys o Namecheap y luego cambiar los DNS a Cloudflare).
 2. Si lo compras fuera: en Cloudflare, **Añadir un dominio**, plan Free, y cambia en tu registrador los servidores DNS por los dos que te indique Cloudflare. Espera a que el dominio aparezca como *Activo*.
-3. En el proyecto de Pages: **Dominios personalizados → Configurar un dominio** → `gasolinerahoy.es`. Añade también `www.gasolinerahoy.es` y crea una **regla de redirección** (*Reglas → Redirect Rules*, plantilla «Redirect from WWW to root») para que `www` redirija con 301 al dominio sin `www`.
+3. En el Worker `gasolinerahoy`: **Settings → Domains & Routes → Add → Custom domain** → `gasolinerahoy.es`. Añade también `www.gasolinerahoy.es` y crea una **regla de redirección** (*Reglas → Redirect Rules*, plantilla «Redirect from WWW to root») para que `www` redirija con 301 al dominio sin `www`.
 4. Si el dominio no es `gasolinerahoy.es`, cámbialo en:
    - `src/site.config.ts` → `url` (y `name` si cambia la marca).
    - `public/robots.txt` → línea `Sitemap:`.

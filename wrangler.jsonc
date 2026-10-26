@@ -1,0 +1,12 @@
+// Despliegue en Cloudflare Workers con archivos estáticos (sin código de servidor).
+// Lo usan `npx wrangler deploy` y el workflow .github/workflows/deploy.yml.
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "gasolinerahoy",
+	"compatibility_date": "2026-10-19",
+	"assets": {
+		"directory": "./dist",
+		"html_handling": "force-trailing-slash",
+		"not_found_handling": "404-page"
+	}
+}
