@@ -1,6 +1,6 @@
 # GasolineraHoy
 
-Web estática con los precios de los carburantes de **todas las gasolineras de España**, por provincia, municipio y estación. Los datos salen de la API pública del Ministerio para la Transición Ecológica (Geoportal de Hidrocarburos), se regeneran **cada hora** con GitHub Actions y se publican en **Cloudflare Pages**. Se financia con **Google AdSense**.
+Web estática con los precios de los carburantes de **todas las gasolineras de España**, por provincia, municipio y estación. Los datos salen de la API pública del Ministerio para la Transición Ecológica (Geoportal de Hidrocarburos), se regeneran **cada hora** con GitHub Actions y se publican en **Cloudflare Workers (archivos estáticos)**. Se financia con **Google AdSense**.
 
 - Astro 7, sin frameworks de interfaz ni de CSS. Mapas con Leaflet + OpenStreetMap.
 - Unas 14.700 páginas HTML: portada, 52 provincias, ~3.200 municipios, ~11.400 gasolineras, `/cerca/` y las páginas legales.
@@ -28,15 +28,15 @@ src/pages/                   rutas (todas estáticas)
 src/layouts/Base.astro       layout común
 src/components/seo/          <Seo> (meta, Open Graph, JSON-LD, script de AdSense) y helpers JSON-LD
 src/components/ads/          <AdSlot> (huecos de anuncios)
-public/_headers              caché y cabeceras de Cloudflare Pages
+public/_headers              caché y cabeceras de Cloudflare
 public/ads.txt, robots.txt
 data/history/history.json    histórico diario (se versiona en git)
 .github/workflows/           deploy.yml (cada hora) y ci.yml (tests en PR)
 ```
 
-## Límite de archivos de Cloudflare Pages
+## Límite de archivos de Cloudflare Workers
 
-Cloudflare Pages admite **como máximo 20.000 archivos por despliegue** (plan gratuito). Ahora salen unos 15.000 (HTML, sitemaps, assets). Los dos workflows cuentan los archivos de `dist/` y fallan si se llega al límite. **No añadas páginas por combinación** (por ejemplo, una por carburante y municipio): los carburantes se cambian en el cliente con pestañas.
+Cloudflare Workers (archivos estáticos) admite **como máximo 20.000 archivos por despliegue** (plan gratuito). Ahora salen unos 15.000 (HTML, sitemaps, assets). Los dos workflows cuentan los archivos de `dist/` y fallan si se llega al límite. **No añadas páginas por combinación** (por ejemplo, una por carburante y municipio): los carburantes se cambian en el cliente con pestañas.
 
 Si algún día hiciera falta superar el límite, las alternativas son Cloudflare Workers con assets estáticos o reducir páginas (p. ej. no generar fichas de gasolinera y enlazar al municipio).
 
