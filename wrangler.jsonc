@@ -2,7 +2,7 @@
 // Lo usan `npx wrangler deploy` y el workflow .github/workflows/deploy.yml.
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
-	"name": "gasolinerahoy",
+	"name": "gasolinerasya",
 	"compatibility_date": "2026-10-19",
 	"assets": {
 		"directory": "./dist",

@@ -1,4 +1,4 @@
-# robots.txt de GasolineraHoy
+# robots.txt de GasolinerasYa
 User-agent: *
 Allow: /
 
@@ -7,4 +7,4 @@ User-agent: Mediapartners-Google
 Allow: /
 
 # Si cambias el dominio en src/site.config.ts, cámbialo también aquí.
-Sitemap: https://gasolinerahoy.es/sitemap-index.xml
+Sitemap: https://gasolinerasya.es/sitemap-index.xml
