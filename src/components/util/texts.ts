@@ -68,4 +68,15 @@ export function spreadSentence(stats: StatsByFuel, f: FuelKey, where: string): s
   return `Entre la gasolinera más barata y la más cara de ${where} hay ${cents(s.max, s.min)} por litro de ${fuelName(f)}: en un depósito de 50 litros son ${tank(s.max - s.min)} de diferencia.`;
 }
 
+/**
+ * Precios para el <title>: "95 desde 1,529 €, diésel desde 1,639 €" (o "a" si es una sola gasolinera).
+ * Vacío si no hay gasolina 95 ni diésel.
+ */
+export function titlePrices(values: Partial<Record<FuelKey, number>>, word: 'desde' | 'a' = 'desde'): string {
+  const parts: string[] = [];
+  if (values.gasolina95) parts.push(`95 ${word} ${price(values.gasolina95)} €`);
+  if (values.diesel) parts.push(`diésel ${word} ${price(values.diesel)} €`);
+  return parts.join(', ');
+}
+
 export { int, plural, pct, pctDiff, price, joinList };

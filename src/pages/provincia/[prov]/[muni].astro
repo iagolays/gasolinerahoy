@@ -24,7 +24,7 @@ import {
 import { FUEL_ORDER } from '../../../lib/fuels';
 import type { FuelKey, Municipality, Province } from '../../../lib/types';
 import { int, joinList, km, price } from '../../../components/util/format';
-import { avgList, cap, fuelName, priceU, spreadSentence, theFuel, vsAvg } from '../../../components/util/texts';
+import { avgList, cap, fuelName, priceU, spreadSentence, theFuel, vsAvg, titlePrices } from '../../../components/util/texts';
 
 export const getStaticPaths = (() => {
   return getMunicipalities().flatMap((muni) => {
@@ -69,7 +69,10 @@ const brands = [...new Set(stations.map((s) => s.brand))];
 
 // "Madrid (Madrid)" sobra: si el municipio se llama como la provincia no se repite.
 const where = name === pName ? name : `${name} (${pName})`;
-const title = `Gasolineras en ${where}: precios de hoy`;
+const tp = only
+  ? titlePrices({ gasolina95: only.prices.gasolina95, diesel: only.prices.diesel }, 'a')
+  : titlePrices({ gasolina95: stats.gasolina95?.min, diesel: stats.diesel?.min });
+const title = tp ? `Gasolineras en ${where}: ${tp}` : `Gasolineras en ${where}: precios de hoy`;
 // Frase de precios solo si hay gasolina 95 o diésel (hay municipios con una sola estación de GLP o AdBlue).
 const priceBits = (fmt: (f: FuelKey) => string) => (main.length ? ` ${cap(joinList(main.map(fmt)))}.` : '');
 const description = only

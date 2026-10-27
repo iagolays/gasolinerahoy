@@ -26,7 +26,7 @@ import {
 import { FUEL_ORDER } from '../../../lib/fuels';
 import type { FuelKey, Province } from '../../../lib/types';
 import { int, plural, price } from '../../../components/util/format';
-import { avgList, cap, ord, priceU, spreadSentence, theFuel, vsAvg, fuelName } from '../../../components/util/texts';
+import { avgList, cap, ord, priceU, spreadSentence, theFuel, vsAvg, fuelName, titlePrices } from '../../../components/util/texts';
 import { placeOf } from '../../../components/util/places';
 
 export const getStaticPaths = (() => {
@@ -78,7 +78,8 @@ function muniExtremes(f: FuelKey) {
 const mx = main[0] ? muniExtremes(main[0]) : null;
 const topMuni = [...munis].sort((a, b) => b.n - a.n)[0];
 
-const title = `Precio de la gasolina en ${name} hoy: gasolineras más baratas`;
+const tp = titlePrices({ gasolina95: stats.gasolina95?.min, diesel: stats.diesel?.min });
+const title = tp ? `Gasolina en ${name} hoy: ${tp}` : `Precio de la gasolina en ${name} hoy: gasolineras más baratas`;
 const description = `Gasolineras más baratas de ${name}: ${avgList(stats)} de media. Compara ${int(stations.length)} gasolineras en ${munis.length} municipios con datos oficiales actualizados cada hora.`;
 const path = provincePath(province);
 ---
