@@ -8,5 +8,8 @@
 		"directory": "./dist",
 		"html_handling": "force-trailing-slash",
 		"not_found_handling": "404-page"
-	}
+	},
+	// Dominio propio (zona gasolinerasya.es en esta cuenta de Cloudflare). La redirección www → raíz
+	// se hace con una Redirect Rule de la zona, no aquí.
+	"routes": [{ "pattern": "gasolinerasya.es", "custom_domain": true }]
 }
