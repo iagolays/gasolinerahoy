@@ -1,9 +1,11 @@
 ---
 // Ficha de una gasolinera: precios, comparación con el municipio y la provincia,
 // dirección, horario, mapa y gasolineras cercanas más baratas.
+import { brandPathOf } from '../../lib/brands';
 import type { GetStaticPaths } from 'astro';
 import Base from '../../layouts/Base.astro';
 import AdSlot from '../../components/ads/AdSlot.astro';
+import ToolsStrip from '../../components/ToolsStrip.astro';
 import FuelTabs from '../../components/FuelTabs.astro';
 import Ranking from '../../components/Ranking.astro';
 import MapView from '../../components/MapView.astro';
@@ -66,6 +68,7 @@ for (const f of fuels) for (const s of cheaper[f] ?? []) if (mapStations.size < 
 // ── Texto generado ──
 const main = fuels.filter((f) => f === 'gasolina95' || f === 'diesel');
 const textFuels = main.length ? main : fuels.slice(0, 1);
+const brandUrl = brandPathOf(station.brand);
 const fullName = `${station.brand} en ${mName}`;
 const locality = station.locality && station.locality !== mName ? `${station.locality}, ${mName}` : mName;
 
@@ -138,8 +141,9 @@ const osmUrl = `https://www.openstreetmap.org/?mlat=${station.lat}&mlon=${statio
     <h2 id="resumen">Resumen</h2>
     <div class="prose">
       <p>
-        {station.brand} es una gasolinera situada en {station.address}, en {locality} ({pName}){station.is24h ? ', abierta las 24 horas' : ''}.
+        {brandUrl ? <a href={brandUrl}>{station.brand}</a> : station.brand} es una gasolinera situada en {station.address}, en {locality} ({pName}){station.is24h ? ', abierta las 24 horas' : ''}.
         {fuels.length > 0 && <> Vende {joinList(fuels.map(fuelName))}.</>}
+        {brandUrl && <> Compara con el resto de <a href={brandUrl}>gasolineras {station.brand}</a>.</>}
       </p>
       {textFuels.map((f) => {
         const v = station.prices[f]!;
@@ -202,6 +206,8 @@ const osmUrl = `https://www.openstreetmap.org/?mlat=${station.lat}&mlon=${statio
       </p>
     </section>
   )}
+
+  <ToolsStrip />
 
   <AdSlot position="bottom" />
 </Base>

@@ -3,6 +3,7 @@
 import type { GetStaticPaths } from 'astro';
 import Base from '../../../layouts/Base.astro';
 import AdSlot from '../../../components/ads/AdSlot.astro';
+import ToolsStrip from '../../../components/ToolsStrip.astro';
 import FuelTabs from '../../../components/FuelTabs.astro';
 import StatsGrid from '../../../components/StatsGrid.astro';
 import Ranking from '../../../components/Ranking.astro';
@@ -180,6 +181,8 @@ const path = provincePath(province);
     <h2 id="historico">Evolución del precio en {name}</h2>
     <HistoryChart series={series} scope={`en ${name}`} />
   </section>
+
+  <ToolsStrip />
 
   <AdSlot position="bottom" />
 </Base>

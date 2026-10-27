@@ -1,0 +1,90 @@
+---
+// Histograma: cuántas gasolineras cobran cada precio (tramos de 2 céntimos), un panel por carburante.
+// SVG estático hecho a mano, sin librerías. Marca la mediana.
+import type { FuelKey, Station, StatsByFuel } from '../lib/types';
+import { price } from './util/format';
+import { fuelName } from './util/texts';
+
+interface Props {
+  stations: readonly Station[];
+  stats: StatsByFuel;
+  fuels: readonly FuelKey[];
+}
+const { stations, stats, fuels } = Astro.props;
+const STEP = 0.02;
+const W = 640;
+const H = 180;
+const PAD_B = 22;
+
+function build(f: FuelKey) {
+  const values = stations.map((s) => s.prices[f]).filter((v): v is number => typeof v === 'number').sort((a, b) => a - b);
+  if (values.length < 50) return null;
+  // Recortamos el 1 % de cada extremo para que unos pocos precios raros no aplasten el gráfico.
+  const lo = Math.floor(values[Math.floor(values.length * 0.01)]! / STEP) * STEP;
+  const hi = Math.ceil(values[Math.ceil(values.length * 0.99) - 1]! / STEP) * STEP;
+  const n = Math.max(1, Math.round((hi - lo) / STEP));
+  const bins = new Array<number>(n).fill(0);
+  for (const v of values) {
+    const i = Math.min(n - 1, Math.max(0, Math.floor((v - lo) / STEP)));
+    bins[i]!++;
+  }
+  const max = Math.max(...bins);
+  const bw = W / n;
+  const median = stats[f]!.median;
+  const mx = ((median - lo) / (hi - lo)) * W;
+  return { lo, hi, n, bins, max, bw, median, mx: Math.min(W, Math.max(0, mx)), count: values.length };
+}
+---
+{fuels.map((f) => {
+  const h = build(f);
+  if (!h) return null;
+  return (
+    <figure data-fuel-pane={f} class="histo">
+      <svg viewBox={`0 0 ${W} ${H + PAD_B}`} role="img" aria-label={`Reparto de precios de la ${fuelName(f)}: mediana ${price(h.median)} €`}>
+        {h.bins.map((c, i) => {
+          const bh = (c / h.max) * (H - 12);
+          return <rect x={(i * h.bw + 1).toFixed(1)} y={(H - bh).toFixed(1)} width={Math.max(1, h.bw - 2).toFixed(1)} height={bh.toFixed(1)} rx="2" class="histo-bar"><title>{`${price(h.lo + i * STEP)}–${price(h.lo + (i + 1) * STEP)} €: ${c} gasolineras`}</title></rect>;
+        })}
+        <line x1={h.mx.toFixed(1)} x2={h.mx.toFixed(1)} y1="0" y2={H} class="histo-median" />
+        <text x={Math.min(W - 4, h.mx + 6).toFixed(1)} y="12" class="histo-label" text-anchor={h.mx > W - 120 ? 'end' : 'start'}>Mediana {price(h.median)} €</text>
+        <text x="0" y={H + 16} class="histo-axis">{price(h.lo)} €</text>
+        <text x={W} y={H + 16} class="histo-axis" text-anchor="end">{price(h.hi)} €</text>
+      </svg>
+      <figcaption class="small muted">
+        Cuántas gasolineras cobran cada precio de {fuelName(f)} (tramos de 2 céntimos, {h.count.toLocaleString('es-ES')} gasolineras). Cuanto más a la
+        izquierda esté la tuya, mejor.
+      </figcaption>
+    </figure>
+  );
+})}
+
+<style>
+  .histo {
+    margin: 0;
+    max-width: 720px;
+  }
+  .histo svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .histo-bar {
+    fill: var(--accent);
+    opacity: 0.75;
+  }
+  .histo-median {
+    stroke: var(--ink);
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+  }
+  .histo-label,
+  .histo-axis {
+    fill: var(--muted);
+    font-size: 13px;
+    font-family: var(--font);
+  }
+  .histo-label {
+    fill: var(--ink);
+    font-weight: 650;
+  }
+</style>

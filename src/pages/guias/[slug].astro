@@ -1,0 +1,77 @@
+---
+// Una guía (artículo en Markdown de src/content/guias/), con anuncios, guías relacionadas y enlaces a las herramientas.
+import type { GetStaticPaths } from 'astro';
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
+import { absUrl } from '../../components/seo/schema';
+import { SITE } from '../../site.config';
+import { date } from '../../components/util/format';
+
+export const getStaticPaths = (async () => {
+  const guias = await getCollection('guias');
+  return guias.map((guia) => ({ params: { slug: guia.id }, props: { guia, all: guias } }));
+}) satisfies GetStaticPaths;
+
+interface Props {
+  guia: CollectionEntry<'guias'>;
+  all: CollectionEntry<'guias'>[];
+}
+const { guia, all } = Astro.props;
+const { Content } = await render(guia);
+const { title, description, related } = guia.data;
+const published = guia.data.date;
+const updated = guia.data.updated ?? published;
+const path = `/guias/${guia.id}/`;
+const relatedGuias = related.map((id) => all.find((g) => g.id === id)).filter((g): g is CollectionEntry<'guias'> => !!g);
+
+const articleLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: title,
+  description,
+  datePublished: published.toISOString().slice(0, 10),
+  dateModified: updated.toISOString().slice(0, 10),
+  inLanguage: 'es-ES',
+  mainEntityOfPage: absUrl(path),
+  author: { '@type': 'Organization', name: SITE.name, url: SITE.url },
+  publisher: { '@type': 'Organization', name: SITE.name, url: SITE.url },
+};
+---
+<Base
+  title={title}
+  description={description}
+  path={path}
+  ogType="article"
+  jsonLd={articleLd}
+  breadcrumbs={[{ name: 'Guías', path: '/guias/' }, { name: title, path }]}
+>
+  <article class="article">
+    <h1>{title}</h1>
+    <p class="article-meta">
+      Por el equipo de {SITE.name} · Actualizado el <time datetime={updated.toISOString().slice(0, 10)}>{date(updated)}</time>
+    </p>
+    <AdSlot position="top" />
+    <Content />
+  </article>
+
+  <aside class="section notice">
+    Herramientas: <a href="/calculadora-gasolina/">calculadora de gasolina</a> · <a href="/compensa-desviarse/">¿compensa desviarse?</a>
+    {' '}· <a href="/cerca/">gasolineras cerca de mí</a> · <a href="/marcas/">marcas más baratas</a>
+  </aside>
+
+  <AdSlot position="inline" />
+
+  {relatedGuias.length > 0 && (
+    <section class="section" aria-labelledby="relacionadas">
+      <h2 id="relacionadas">También te puede interesar</h2>
+      <ul class="card-list">
+        {relatedGuias.map((g) => (
+          <li><a href={`/guias/${g.id}/`}><strong>{g.data.title}</strong><span>{g.data.description}</span></a></li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <AdSlot position="bottom" />
+</Base>

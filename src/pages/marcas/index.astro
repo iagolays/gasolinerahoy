@@ -1,0 +1,123 @@
+---
+// Ranking de marcas por precio medio (todas las que tienen página propia).
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
+import FuelTabs from '../../components/FuelTabs.astro';
+import { itemListLd } from '../../components/seo/schema';
+import { brandPath, getBrands, MIN_BRAND_STATIONS, type Brand } from '../../lib/brands';
+import { getStations, isPeninsular, nationalStats, statsFor } from '../../lib/data';
+import type { FuelKey } from '../../lib/types';
+import { deltaClass, int, pct, pctDiff, price } from '../../components/util/format';
+
+const national = nationalStats();
+const brands = getBrands();
+const fuels: FuelKey[] = (['gasolina95', 'diesel', 'gasolina98', 'dieselPremium'] as FuelKey[]).filter((f) => national[f]);
+
+// Comparamos solo en la península: si no, las marcas de Canarias (Disa…) salen baratas por los impuestos.
+const pen = brands
+  .map((b) => ({ b, stats: statsFor(b.stations.filter((s) => isPeninsular(s.provinceId))) }))
+  .filter((x) => x.stats.gasolina95 || x.stats.diesel);
+const penNational = statsFor(getStations().filter((s) => isPeninsular(s.provinceId)));
+
+function sorted(f: FuelKey) {
+  return pen.filter((x) => x.stats[f] && x.stats[f]!.count >= 5).sort((a, b) => a.stats[f]!.avg - b.stats[f]!.avg);
+}
+const by95 = sorted('gasolina95');
+const byDiesel = sorted('diesel');
+const cheapest95 = by95[0];
+const dearest95 = by95[by95.length - 1];
+const cheapestDiesel = byDiesel[0];
+
+const kindLabel: Record<Brand['kind'], string> = { lowcost: 'Low cost', major: 'Tradicional', other: 'Regional / otras' };
+
+const title = 'Marcas de gasolineras más baratas de España hoy';
+const description = cheapest95
+  ? `Ranking de ${brands.length} marcas de gasolineras por precio medio. Hoy la gasolina 95 más barata de media es la de ${cheapest95.b.name} (${price(cheapest95.stats.gasolina95!.avg)} €/l).`
+  : `Ranking de ${brands.length} marcas de gasolineras por precio medio.`;
+---
+<Base
+  title={title}
+  description={description}
+  path="/marcas/"
+  fuels={fuels}
+  breadcrumbs={[{ name: 'Marcas', path: '/marcas/' }]}
+  jsonLd={itemListLd('Marcas de gasolineras más baratas (gasolina 95, península)', by95.slice(0, 20).map((x) => ({ name: x.b.name, path: brandPath(x.b) })))}
+>
+  <header class="page-head">
+    <h1>Marcas de gasolineras más baratas</h1>
+    <p class="lead">
+      Precio medio de hoy de las {brands.length} marcas con al menos {MIN_BRAND_STATIONS} gasolineras en España, comparado con la media
+      de la península. Entra en cada marca para ver sus gasolineras más baratas.
+    </p>
+  </header>
+
+  <AdSlot position="top" />
+
+  <section class="section prose summary">
+    {cheapest95 && dearest95 && (
+      <p>
+        En la península, la marca con la gasolina 95 más barata de media es <a href={brandPath(cheapest95.b)}>{cheapest95.b.name}</a>
+        {' '}({price(cheapest95.stats.gasolina95!.avg)} €/l, {pct(pctDiff(cheapest95.stats.gasolina95!.avg, penNational.gasolina95!.avg), true)} respecto a la media)
+        y la más cara es <a href={brandPath(dearest95.b)}>{dearest95.b.name}</a> ({price(dearest95.stats.gasolina95!.avg)} €/l).
+        {cheapestDiesel && (
+          <> En diésel gana <a href={brandPath(cheapestDiesel.b)}>{cheapestDiesel.b.name}</a>, a {price(cheapestDiesel.stats.diesel!.avg)} €/l de media.</>
+        )}
+      </p>
+    )}
+    <p>
+      Las cadenas <strong>low cost</strong> suelen estar arriba de la lista porque no tienen personal en pista ni tienda grande, y muchas
+      están junto a supermercados. La calidad del carburante es la misma: todas tienen que cumplir la misma normativa. Lo explicamos en
+      {' '}<a href="/guias/gasolineras-low-cost-calidad/">¿Es peor la gasolina de las low cost?</a> y lo medimos en el informe{' '}
+      <a href="/informes/low-cost-vs-tradicionales/">low cost frente a tradicionales</a>.
+    </p>
+  </section>
+
+  <section class="section" aria-labelledby="ranking">
+    <h2 id="ranking">Ranking de marcas por precio medio</h2>
+    <p class="section-sub">Solo gasolineras de la península. Elige carburante; la tabla se ordena de más barata a más cara.</p>
+    <FuelTabs fuels={fuels} sticky />
+    {fuels.map((f) => {
+      const list = sorted(f);
+      const ref = penNational[f]?.avg ?? 0;
+      return (
+        <div data-fuel-pane={f} class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr><th class="n">#</th><th>Marca</th><th>Tipo</th><th class="n">Precio medio</th><th class="n">vs. media</th><th class="n">Gasolineras</th></tr>
+            </thead>
+            <tbody>
+              {list.map((x, i) => {
+                const d = pctDiff(x.stats[f]!.avg, ref);
+                const cls = deltaClass(d);
+                return (
+                  <tr>
+                    <td class="n">{i + 1}</td>
+                    <td><a href={brandPath(x.b)}>{x.b.name}</a></td>
+                    <td>{kindLabel[x.b.kind]}</td>
+                    <td class="n">{price(x.stats[f]!.avg)}</td>
+                    <td class:list={['n', cls === 'eq' ? '' : cls]}>{cls === 'eq' ? '≈ 0 %' : pct(d, true)}</td>
+                    <td class="n">{int(x.stats[f]!.count)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      );
+    })}
+  </section>
+
+  <AdSlot position="inline" />
+
+  <section class="section" aria-labelledby="todas">
+    <h2 id="todas">Todas las marcas</h2>
+    <p class="section-sub">De más a menos gasolineras en toda España.</p>
+    <ul class="link-list cols">
+      {brands.map((b) => (
+        <li><a href={brandPath(b)}><span class="name">{b.name}</span><span class="meta">{int(b.stations.length)}</span></a></li>
+      ))}
+    </ul>
+  </section>
+
+  <AdSlot position="bottom" />
+</Base>

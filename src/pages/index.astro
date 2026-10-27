@@ -7,6 +7,9 @@ import StatsGrid from '../components/StatsGrid.astro';
 import Ranking from '../components/Ranking.astro';
 import HistoryChart from '../components/HistoryChart.astro';
 import MuniSearch from '../components/MuniSearch.astro';
+import PriceHistogram from '../components/PriceHistogram.astro';
+import { REPORTS, TOOLS } from '../lib/reports';
+import { getCollection } from 'astro:content';
 import Price from '../components/Price.astro';
 import { websiteLd, datasetLd, itemListLd } from '../components/seo/schema';
 import {
@@ -65,7 +68,11 @@ const cheapestLines = (['gasolina95', 'diesel'] as FuelKey[])
 const e95 = provExtremes('gasolina95');
 const eDiesel = provExtremes('diesel');
 
-const title = 'Precio de la gasolina hoy en España: las gasolineras más baratas';
+const shortPrice = (f: FuelKey) => national[f]!.avg.toLocaleString('es-ES', { minimumFractionDigits: 3 });
+const title = national.gasolina95 && national.diesel
+  ? `Precio de la gasolina hoy: 95 a ${shortPrice('gasolina95')} € y diésel a ${shortPrice('diesel')} €`
+  : 'Precio de la gasolina hoy en España: las gasolineras más baratas';
+const guias = (await getCollection('guias')).sort((a, b) => a.data.order - b.data.order).slice(0, 4);
 const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stations.length)} gasolineras de España y encuentra la más barata cerca de ti. Datos oficiales actualizados cada hora.`;
 ---
 <Base
@@ -89,6 +96,13 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
       Compara los precios de las {int(stations.length)} gasolineras de España con datos oficiales que se actualizan cada hora.
       Busca tu municipio o mira cuáles son las más baratas cerca de ti.
     </p>
+    {national.gasolina95 && national.diesel && (
+      <p class="answer">
+        Hoy, {dateTime(updatedAt)}, el precio medio de la <strong>gasolina 95</strong> en España es de{' '}
+        <strong>{priceU(national.gasolina95.avg, 'gasolina95')}</strong> y el del <strong>diésel</strong>, de{' '}
+        <strong>{priceU(national.diesel.avg, 'diesel')}</strong>. La gasolina 95 más barata está a {priceU(national.gasolina95.min, 'gasolina95')}.
+      </p>
+    )}
     <div class="hero-avgs" aria-label="Precio medio en España">
       {(['gasolina95', 'diesel'] as FuelKey[]).filter((f) => national[f]).map((f) => (
         <div class="hero-avg">
@@ -155,6 +169,13 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
     </div>
   </section>
 
+  <section class="section" aria-labelledby="reparto">
+    <h2 id="reparto">¿Cuánto cobran las gasolineras?</h2>
+    <p class="section-sub">Reparto de los precios de todas las gasolineras de España. Cambia de carburante con las pestañas.</p>
+    <FuelTabs fuels={fuels.filter((f) => f === 'gasolina95' || f === 'diesel' || f === 'gasolina98')} />
+    <PriceHistogram stations={stations} stats={national} fuels={fuels.filter((f) => f === 'gasolina95' || f === 'diesel' || f === 'gasolina98')} />
+  </section>
+
   <section class="section" aria-labelledby="baratas">
     <h2 id="baratas">Las 10 gasolineras más baratas de la península</h2>
     <p class="section-sub">Sin Canarias, Ceuta, Melilla ni Baleares. Comparadas con la media peninsular.</p>
@@ -181,7 +202,7 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
 
   <section class="section" aria-labelledby="provincias-t" id="provincias">
     <h2 id="provincias-t">Precios por provincia</h2>
-    <p class="section-sub">Precio medio del carburante seleccionado en cada provincia. Entra para ver todos sus municipios.</p>
+    <p class="section-sub">Precio medio del carburante seleccionado en cada provincia. Entra para ver todos sus municipios, o mira el <a href="/informes/precio-por-provincia/">ranking de provincias</a>.</p>
     <FuelTabs fuels={fuels} />
     <ul class="link-list cols">
       {provinces.map(({ p, stats }) => (
@@ -197,6 +218,21 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
         </li>
       ))}
     </ul>
+  </section>
+
+  <section class="section" aria-labelledby="herramientas">
+    <h2 id="herramientas">Herramientas e informes</h2>
+    <ul class="card-list">
+      {[...TOOLS.filter((t) => t.path !== '/cerca/'), ...REPORTS].map((t) => <li><a href={t.path}><strong>{t.title}</strong><span>{t.summary}</span></a></li>)}
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="guias">
+    <h2 id="guias">Guías para ahorrar</h2>
+    <ul class="card-list">
+      {guias.map((g) => <li><a href={`/guias/${g.id}/`}><strong>{g.data.title}</strong><span>{g.data.description}</span></a></li>)}
+    </ul>
+    <p><a href="/guias/">Ver todas las guías</a></p>
   </section>
 
   <AdSlot position="bottom" />
@@ -255,5 +291,12 @@ const description = `Precio medio hoy: ${avgList(national)}. Compara ${int(stati
   }
   #provincias {
     scroll-margin-top: 80px;
+  }
+  .answer {
+    max-width: 70ch;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
   }
 </style>

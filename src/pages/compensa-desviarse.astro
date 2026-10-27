@@ -1,0 +1,99 @@
+---
+// Calculadora de desvío: ¿compensa hacer kilómetros de más para repostar en una gasolinera más barata?
+import Base from '../layouts/Base.astro';
+import AdSlot from '../components/ads/AdSlot.astro';
+import { nationalStats } from '../lib/data';
+import { TOOLS } from '../lib/reports';
+
+const national = nationalStats();
+const avg = national.gasolina95?.avg ?? 1.7;
+const near = Math.round((avg + 0.04) * 1000) / 1000;
+const far = Math.round((avg - 0.06) * 1000) / 1000;
+
+const title = '¿Compensa desviarse para repostar más barato? Calculadora';
+const description = 'Calcula si merece la pena hacer kilómetros de más para echar gasolina o diésel en una gasolinera más barata, y hasta cuántos kilómetros compensa.';
+---
+<Base
+  title={title}
+  description={description}
+  path="/compensa-desviarse/"
+  breadcrumbs={[{ name: '¿Compensa desviarse?', path: '/compensa-desviarse/' }]}
+  jsonLd={{
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Calculadora: ¿compensa desviarse para repostar?',
+    applicationCategory: 'UtilitiesApplication',
+    operatingSystem: 'Any',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+  }}
+>
+  <header class="page-head">
+    <h1>¿Compensa desviarse para repostar más barato?</h1>
+    <p class="lead">Pon los dos precios y los kilómetros de más que tendrías que hacer: te decimos si ganas dinero y hasta dónde merece la pena ir.</p>
+  </header>
+
+  <AdSlot position="top" />
+
+  <form class="tool card" id="detour" onsubmit="return false">
+    <div class="tool-grid">
+      <div class="field">
+        <label for="d-near">Precio de la gasolinera cercana (€/l)</label>
+        <input id="d-near" type="number" inputmode="decimal" step="0.001" min="0" value={near.toFixed(3)} />
+      </div>
+      <div class="field">
+        <label for="d-far">Precio de la gasolinera barata (€/l)</label>
+        <input id="d-far" type="number" inputmode="decimal" step="0.001" min="0" value={far.toFixed(3)} />
+      </div>
+      <div class="field">
+        <label for="d-liters">Litros que vas a echar</label>
+        <input id="d-liters" type="number" inputmode="decimal" min="0" value="40" />
+      </div>
+      <div class="field">
+        <label for="d-km">Kilómetros de más (ida y vuelta)</label>
+        <input id="d-km" type="number" inputmode="decimal" min="0" step="0.1" value="6" />
+      </div>
+      <div class="field">
+        <label for="d-cons">Consumo (l/100 km)</label>
+        <input id="d-cons" type="number" inputmode="decimal" min="0" step="0.1" value="6.5" />
+      </div>
+    </div>
+    <div class="result" aria-live="polite">
+      <p class="result-main" id="d-verdict">—</p>
+      <dl>
+        <dt>Ahorras en el depósito</dt><dd id="d-save">—</dd>
+        <dt>Te cuesta el desvío</dt><dd id="d-cost">—</dd>
+        <dt>Compensa hasta</dt><dd id="d-max">—</dd>
+      </dl>
+    </div>
+  </form>
+
+  <AdSlot position="inline" />
+
+  <section class="section article" aria-labelledby="como">
+    <h2 id="como">Cómo se calcula</h2>
+    <p><strong>Ahorro</strong> = litros × (precio cercana − precio barata).</p>
+    <p><strong>Coste del desvío</strong> = kilómetros de más × consumo ÷ 100 × precio de la barata.</p>
+    <p>
+      Compensa si el ahorro es mayor que el coste. Como regla rápida, con un coche que gasta unos 6,5 l/100 km cada kilómetro de más cuesta
+      unos 11 céntimos. Lo explicamos con ejemplos en la guía <a href="/guias/compensa-desviarse-para-repostar/">¿compensa desviarse para repostar?</a>
+    </p>
+    <p>
+      Para saber qué gasolineras tienes cerca y a qué precio, usa <a href="/cerca/">gasolineras cerca de mí</a>: ordena por precio y verás
+      la distancia de cada una.
+    </p>
+  </section>
+
+  <section class="section" aria-labelledby="mas">
+    <h2 id="mas">Más herramientas</h2>
+    <ul class="card-list">
+      {TOOLS.filter((t) => t.path !== '/compensa-desviarse/').map((t) => <li><a href={t.path}><strong>{t.title}</strong><span>{t.summary}</span></a></li>)}
+    </ul>
+  </section>
+
+  <AdSlot position="bottom" />
+</Base>
+
+<script>
+  import { initDetour } from '../components/scripts/calc';
+  initDetour();
+</script>

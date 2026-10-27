@@ -1,0 +1,112 @@
+---
+// Informe: precio medio por provincia y diferencia con la media de España, en céntimos por litro.
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
+import FuelTabs from '../../components/FuelTabs.astro';
+import DiffBars from '../../components/DiffBars.astro';
+import { getProvinces, getUpdatedAt, hasOwnFuelTaxes, isPeninsular, nationalStats, provincePath, provinceStats } from '../../lib/data';
+import type { FuelKey } from '../../lib/types';
+import { date, int, price, tank } from '../../components/util/format';
+import { cents, fuelName, priceU } from '../../components/util/texts';
+
+const national = nationalStats();
+const fuels: FuelKey[] = (['gasolina95', 'diesel', 'gasolina98'] as FuelKey[]).filter((f) => national[f]);
+const provinces = getProvinces().map((p) => ({ p, stats: provinceStats(p.id) }));
+const updatedAt = getUpdatedAt();
+
+function sorted(f: FuelKey) {
+  return provinces.filter((x) => x.stats[f] && x.stats[f]!.count >= 3).sort((a, b) => a.stats[f]!.avg - b.stats[f]!.avg);
+}
+const l95 = sorted('gasolina95');
+const pen95 = l95.filter((x) => isPeninsular(x.p.id));
+const lD = sorted('diesel');
+const penD = lD.filter((x) => isPeninsular(x.p.id));
+
+const title = 'Precio de la gasolina por provincias: ranking de hoy';
+const description = `Ranking de las 52 provincias por precio medio de la gasolina y el diésel hoy, con la diferencia en céntimos respecto a la media de España (${priceU(national.gasolina95?.avg ?? 0, 'gasolina95')}).`;
+---
+<Base
+  title={title}
+  description={description}
+  path="/informes/precio-por-provincia/"
+  fuels={fuels}
+  ogType="article"
+  breadcrumbs={[{ name: 'Informes', path: '/informes/' }, { name: 'Precio por provincia', path: '/informes/precio-por-provincia/' }]}
+>
+  <article class="article">
+    <h1>Precio de la gasolina por provincias</h1>
+    <p class="article-meta">Datos del {date(updatedAt)}. Se actualiza cada hora.</p>
+    <p class="lead">
+      ¿Dónde sale más barato repostar? Comparamos el precio medio de cada provincia con la media de España y te decimos cuántos
+      céntimos por litro te ahorras (o pagas de más).
+    </p>
+
+    <AdSlot position="top" />
+
+    <h2>Resumen</h2>
+    {pen95.length > 1 && (
+      <p>
+        En la península, la provincia con la gasolina 95 más barata es <a href={provincePath(pen95[0]!.p)}>{pen95[0]!.p.name}</a>
+        {' '}({priceU(pen95[0]!.stats.gasolina95!.avg, 'gasolina95')}) y la más cara es{' '}
+        <a href={provincePath(pen95[pen95.length - 1]!.p)}>{pen95[pen95.length - 1]!.p.name}</a>
+        {' '}({priceU(pen95[pen95.length - 1]!.stats.gasolina95!.avg, 'gasolina95')}): {cents(pen95[pen95.length - 1]!.stats.gasolina95!.avg, pen95[0]!.stats.gasolina95!.avg)} por litro,
+        {' '}{tank(pen95[pen95.length - 1]!.stats.gasolina95!.avg - pen95[0]!.stats.gasolina95!.avg)} en un depósito de 50 litros.
+      </p>
+    )}
+    {penD.length > 1 && (
+      <p>
+        En diésel, la más barata es <a href={provincePath(penD[0]!.p)}>{penD[0]!.p.name}</a> ({priceU(penD[0]!.stats.diesel!.avg, 'diesel')})
+        {' '}y la más cara <a href={provincePath(penD[penD.length - 1]!.p)}>{penD[penD.length - 1]!.p.name}</a>
+        {' '}({priceU(penD[penD.length - 1]!.stats.diesel!.avg, 'diesel')}).
+      </p>
+    )}
+    <p>
+      Canarias, Ceuta y Melilla aparecen casi siempre como las más baratas porque tienen sus propios impuestos sobre los carburantes,
+      más bajos que en la península. Lo explicamos en <a href="/guias/impuestos-de-la-gasolina/">qué impuestos pagas en cada litro</a>.
+    </p>
+
+    <h2>Diferencia con la media de España</h2>
+    <p class="section-sub">Céntimos por litro respecto a la media nacional. Elige carburante.</p>
+    <FuelTabs fuels={fuels} sticky />
+    {fuels.map((f) => (
+      <div data-fuel-pane={f}>
+        <p class="small muted">Media de España: {priceU(national[f]!.avg, f)}.</p>
+        <DiffBars
+          label={`Diferencia de la ${fuelName(f)} por provincia`}
+          items={sorted(f).map((x) => ({ name: x.p.name, path: provincePath(x.p), diff: x.stats[f]!.avg - national[f]!.avg }))}
+        />
+      </div>
+    ))}
+  </article>
+
+  <AdSlot position="inline" />
+
+  <section class="section" aria-labelledby="tabla">
+    <h2 id="tabla">Tabla completa</h2>
+    <FuelTabs fuels={fuels} />
+    {fuels.map((f) => (
+      <div data-fuel-pane={f} class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr><th class="n">#</th><th>Provincia</th><th class="n">Media</th><th class="n">Mínimo</th><th class="n">Máximo</th><th class="n">Gasolineras</th></tr>
+          </thead>
+          <tbody>
+            {sorted(f).map((x, i) => (
+              <tr>
+                <td class="n">{i + 1}</td>
+                <td><a href={provincePath(x.p)}>{x.p.name}</a>{hasOwnFuelTaxes(x.p.id) && <span class="muted small"> *</span>}</td>
+                <td class="n">{price(x.stats[f]!.avg)}</td>
+                <td class="n">{price(x.stats[f]!.min)}</td>
+                <td class="n">{price(x.stats[f]!.max)}</td>
+                <td class="n">{int(x.stats[f]!.count)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ))}
+    <p class="small muted">* Fiscalidad propia (impuestos más bajos que en la península). Precios en €/l. Cómo los calculamos: <a href="/metodologia/">metodología</a>.</p>
+  </section>
+
+  <AdSlot position="bottom" />
+</Base>

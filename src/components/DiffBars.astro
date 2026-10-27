@@ -1,0 +1,35 @@
+---
+// Barras horizontales con la diferencia (en céntimos por litro) de cada elemento frente a una referencia.
+// Verde hacia la izquierda = más barato; naranja hacia la derecha = más caro.
+interface Item {
+  name: string;
+  path?: string;
+  /** Diferencia en €/l respecto a la referencia (negativo = más barato). */
+  diff: number;
+}
+interface Props {
+  items: Item[];
+  label: string;
+}
+const { items, label } = Astro.props;
+const maxAbs = Math.max(0.01, ...items.map((i) => Math.abs(i.diff)));
+const fmt = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const text = (d: number) => {
+  const c = d * 100;
+  if (Math.abs(c) < 0.05) return '0,0';
+  return `${c > 0 ? '+' : '−'}${fmt.format(Math.abs(c))}`;
+};
+---
+<ul class="bars" aria-label={label}>
+  {items.map((i) => {
+    const w = (Math.abs(i.diff) / maxAbs) * 50;
+    const cls = i.diff < 0 ? 'good' : 'bad';
+    return (
+      <li class="bar">
+        {i.path ? <a href={i.path}>{i.name}</a> : <span>{i.name}</span>}
+        <span class="bar-track" aria-hidden="true"><span class={`bar-fill ${cls}`} style={`width:${w.toFixed(2)}%`}></span></span>
+        <span class="bar-val">{text(i.diff)}<span class="muted small"> cts</span></span>
+      </li>
+    );
+  })}
+</ul>

@@ -1,0 +1,128 @@
+---
+// Página de una marca: precio medio frente a España, sus gasolineras más baratas y su presencia por provincia.
+import type { GetStaticPaths } from 'astro';
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
+import FuelTabs from '../../components/FuelTabs.astro';
+import StatsGrid from '../../components/StatsGrid.astro';
+import Ranking from '../../components/Ranking.astro';
+import { itemListLd } from '../../components/seo/schema';
+import { brandPath, getBrands, type Brand } from '../../lib/brands';
+import { cheapest, getProvinceById, getStations, isPeninsular, nationalStats, provincePath, stationPath, statsFor } from '../../lib/data';
+import { FUEL_ORDER } from '../../lib/fuels';
+import type { FuelKey } from '../../lib/types';
+import { int, joinList, plural, price } from '../../components/util/format';
+import { avgList, theFuel, vsAvg } from '../../components/util/texts';
+import { placeOf } from '../../components/util/places';
+
+export const getStaticPaths = (() => getBrands().map((brand) => ({ params: { slug: brand.slug }, props: { brand } }))) satisfies GetStaticPaths;
+
+interface Props {
+  brand: Brand;
+}
+const { brand } = Astro.props;
+const name = brand.name;
+const national = nationalStats();
+const stats = brand.stats;
+const fuels = FUEL_ORDER.filter((f) => stats[f]);
+const main = (['gasolina95', 'diesel'] as FuelKey[]).filter((f) => stats[f]);
+
+// Comparación justa: península contra península (Canarias, Ceuta y Melilla tienen otros impuestos).
+const penStations = brand.stations.filter((s) => isPeninsular(s.provinceId));
+const penStats = statsFor(penStations);
+const allPen = statsFor(getStations().filter((s) => isPeninsular(s.provinceId)));
+const onlyIslands = penStations.length === 0;
+const penCompare = main
+  .filter((f) => penStats[f] && allPen[f])
+  .map((f) => `${theFuel(f)} de ${name} está ${vsAvg(penStats[f]!.avg, allPen[f]!.avg, 'la península')}`);
+
+const rankings: Partial<Record<FuelKey, ReturnType<typeof cheapest>>> = {};
+for (const f of fuels) rankings[f] = cheapest(brand.stations, f, 10);
+
+const provinces = brand.provinceIds
+  .map((id) => {
+    const p = getProvinceById(id)!;
+    const list = brand.stations.filter((s) => s.provinceId === id);
+    return { p, n: list.length, stats: statsFor(list) };
+  })
+  .sort((a, b) => b.n - a.n || a.p.name.localeCompare(b.p.name, 'es'));
+const topProv = provinces[0];
+const open24 = brand.stations.filter((s) => s.is24h).length;
+
+const kindText: Record<Brand['kind'], string> = {
+  lowcost: `${name} es una cadena de gasolineras low cost: precios ajustados a cambio de menos servicios (muchas son automáticas o están junto a un supermercado).`,
+  major: `${name} es una de las grandes operadoras de carburantes en España, con red en casi todo el país y servicios como tienda, lavado o tarjeta de fidelización.`,
+  other: `${name} es una red de gasolineras de tamaño medio o regional.`,
+};
+
+const title = `Gasolineras ${name}: precios de hoy y las más baratas`;
+const description = `Precios de hoy en las ${int(brand.stations.length)} gasolineras ${name} de España: ${avgList(stats)} de media. Encuentra la ${name} más barata de tu provincia.`;
+const path = brandPath(brand);
+---
+<Base
+  title={title}
+  description={description}
+  path={path}
+  fuels={fuels}
+  breadcrumbs={[{ name: 'Marcas', path: '/marcas/' }, { name, path }]}
+  jsonLd={itemListLd(
+    `Gasolineras ${name} más baratas`,
+    (rankings[fuels[0]!] ?? []).map((s) => ({ name: `${s.brand} (${placeOf(s).municipality})`, path: stationPath(s) })),
+  )}
+>
+  <header class="page-head">
+    <h1>Gasolineras {name}: precios de hoy</h1>
+    <p class="lead">
+      {plural(brand.stations.length, 'gasolinera', 'gasolineras')} {name} en {plural(provinces.length, 'provincia', 'provincias')}.
+      Precio medio de hoy y las más baratas de la marca.
+    </p>
+  </header>
+
+  <AdSlot position="top" />
+
+  <section class="section" aria-labelledby="medias">
+    <h2 id="medias">Precio medio de {name}</h2>
+    <StatsGrid stats={stats} reference={national} refLabel="vs. España" />
+    <div class="prose summary">
+      <p>
+        {kindText[brand.kind]} Tiene {plural(brand.stations.length, 'gasolinera', 'gasolineras')} con precios publicados
+        {topProv && <>, sobre todo en <a href={provincePath(topProv.p)}>{topProv.p.name}</a> ({int(topProv.n)})</>}.
+        {main.length > 0 && <> De media, {avgList(stats)}.</>}
+      </p>
+      {!onlyIslands && (
+        <p>
+          {penCompare.length > 0 && <>En la península, {joinList(penCompare)}. </>}
+          Dentro de una misma marca el precio cambia mucho de una gasolinera a otra, así que merece la pena mirar las más baratas de tu zona.
+        </p>
+      )}
+      {open24 > 0 && <p>{open24 === 1 ? `Una gasolinera ${name} abre` : `${int(open24)} gasolineras ${name} abren`} las 24 horas.</p>}
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="baratas">
+    <h2 id="baratas">Las gasolineras {name} más baratas</h2>
+    <FuelTabs fuels={fuels} sticky />
+    <Ranking rankings={rankings} reference={stats} refLabel={`vs. ${name}`} place="full" />
+  </section>
+
+  <AdSlot position="inline" />
+
+  <section class="section" aria-labelledby="provincias">
+    <h2 id="provincias">{name} por provincia</h2>
+    <p class="section-sub">Número de gasolineras y precio medio del carburante seleccionado.</p>
+    <FuelTabs fuels={fuels} />
+    <ul class="link-list cols">
+      {provinces.map(({ p, n, stats: ps }) => (
+        <li>
+          <a href={provincePath(p)}>
+            <span class="name">{p.name} <span class="muted small">({int(n)})</span></span>
+            {fuels.map((f) => <span class="meta" data-fuel-pane={f}>{ps[f] ? <strong>{price(ps[f]!.avg)}</strong> : '—'}</span>)}
+          </a>
+        </li>
+      ))}
+    </ul>
+    <p class="small muted">Compara con el resto de marcas en el <a href="/marcas/">ranking de marcas</a>.</p>
+  </section>
+
+  <AdSlot position="bottom" />
+</Base>

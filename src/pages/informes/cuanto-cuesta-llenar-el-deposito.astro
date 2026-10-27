@@ -1,0 +1,110 @@
+---
+// Informe: cuánto cuesta hoy llenar el depósito según el tamaño, el carburante y dónde repostes.
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
+import { cheapest, getProvinces, getStations, getUpdatedAt, isPeninsular, nationalStats, provincePath, stationPath, statsFor } from '../../lib/data';
+import type { FuelKey } from '../../lib/types';
+import { date } from '../../components/util/format';
+import { fuelName, priceU } from '../../components/util/texts';
+import { placeOf } from '../../components/util/places';
+
+const national = nationalStats();
+const fuels: FuelKey[] = (['gasolina95', 'diesel', 'gasolina98', 'glp'] as FuelKey[]).filter((f) => national[f]);
+const SIZES = [40, 50, 60, 70];
+const updatedAt = getUpdatedAt();
+const eur = (n: number) => `${n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+
+const pen = getStations().filter((s) => isPeninsular(s.provinceId));
+const penStats = statsFor(pen);
+const provs = getProvinces()
+  .filter((p) => isPeninsular(p.id))
+  .map((p) => ({ p, stats: statsFor(pen.filter((s) => s.provinceId === p.id)) }));
+function extremes(f: FuelKey) {
+  const l = provs.filter((x) => x.stats[f] && x.stats[f]!.count >= 5).sort((a, b) => a.stats[f]!.avg - b.stats[f]!.avg);
+  return { low: l[0], high: l[l.length - 1] };
+}
+const e95 = extremes('gasolina95');
+const eD = extremes('diesel');
+const best95 = cheapest(pen, 'gasolina95', 1)[0];
+
+const title = '¿Cuánto cuesta llenar el depósito hoy? Gasolina y diésel';
+const description = national.gasolina95
+  ? `Llenar un depósito de 50 litros de gasolina 95 cuesta hoy ${eur(national.gasolina95.avg * 50)} de media en España. Precio para 40, 50, 60 y 70 litros, por carburante y provincia.`
+  : 'Cuánto cuesta llenar el depósito hoy en España.';
+---
+<Base
+  title={title}
+  description={description}
+  path="/informes/cuanto-cuesta-llenar-el-deposito/"
+  fuels={fuels}
+  ogType="article"
+  breadcrumbs={[{ name: 'Informes', path: '/informes/' }, { name: 'Llenar el depósito', path: '/informes/cuanto-cuesta-llenar-el-deposito/' }]}
+>
+  <article class="article">
+    <h1>¿Cuánto cuesta llenar el depósito hoy?</h1>
+    <p class="article-meta">Datos del {date(updatedAt)}. Se actualiza cada hora.</p>
+    {national.gasolina95 && national.diesel && (
+      <p class="lead">
+        Llenar un depósito de 50 litros cuesta hoy <strong>{eur(national.gasolina95.avg * 50)}</strong> de gasolina 95 y{' '}
+        <strong>{eur(national.diesel.avg * 50)}</strong> de diésel, con el precio medio de España.
+      </p>
+    )}
+
+    <AdSlot position="top" />
+
+    <h2>Según el tamaño del depósito</h2>
+    <p>Con el precio medio nacional de cada carburante. Un utilitario suele tener entre 40 y 45 litros, una berlina o un SUV compacto unos 50–55 y un SUV grande o una furgoneta 60–70.</p>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>Carburante</th><th class="n">Precio medio</th>{SIZES.map((l) => <th class="n">{l} l</th>)}</tr></thead>
+        <tbody>
+          {fuels.map((f) => (
+            <tr><td>{fuelName(f)}</td><td class="n">{priceU(national[f]!.avg, f)}</td>{SIZES.map((l) => <td class="n">{eur(national[f]!.avg * l)}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Dónde repostes cambia mucho la cuenta</h2>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>Depósito de 50 l</th><th class="n">Gasolina 95</th><th class="n">Diésel</th></tr></thead>
+        <tbody>
+          {penStats.gasolina95 && penStats.diesel && (
+            <>
+              <tr><td>Gasolinera más barata de la península</td><td class="n good">{eur(penStats.gasolina95.min * 50)}</td><td class="n good">{eur(penStats.diesel.min * 50)}</td></tr>
+              <tr><td>Media de la península</td><td class="n">{eur(penStats.gasolina95.avg * 50)}</td><td class="n">{eur(penStats.diesel.avg * 50)}</td></tr>
+              <tr><td>Gasolinera más cara de la península</td><td class="n bad">{eur(penStats.gasolina95.max * 50)}</td><td class="n bad">{eur(penStats.diesel.max * 50)}</td></tr>
+            </>
+          )}
+          {e95.low && eD.low && <tr><td>Provincia más barata (media)</td><td class="n">{eur(e95.low.stats.gasolina95!.avg * 50)} · <a href={provincePath(e95.low.p)}>{e95.low.p.name}</a></td><td class="n">{eur(eD.low!.stats.diesel!.avg * 50)} · <a href={provincePath(eD.low!.p)}>{eD.low!.p.name}</a></td></tr>}
+          {e95.high && eD.high && <tr><td>Provincia más cara (media)</td><td class="n">{eur(e95.high.stats.gasolina95!.avg * 50)} · <a href={provincePath(e95.high.p)}>{e95.high.p.name}</a></td><td class="n">{eur(eD.high!.stats.diesel!.avg * 50)} · <a href={provincePath(eD.high!.p)}>{eD.high!.p.name}</a></td></tr>}
+        </tbody>
+      </table>
+    </div>
+    {penStats.gasolina95 && (
+      <p>
+        Entre la gasolinera más barata y la media de la península hay {eur((penStats.gasolina95.avg - penStats.gasolina95.min) * 50)} por
+        depósito de gasolina 95. No hace falta irse a la más barata de España: casi siempre hay una gasolinera bastante más barata que la media
+        a pocos kilómetros. Búscala con <a href="/cerca/">gasolineras cerca de mí</a> o calcula si te compensa el desvío con la{' '}
+        <a href="/compensa-desviarse/">calculadora de desvío</a>.
+      </p>
+    )}
+    {best95 && (
+      <p class="small muted">
+        La gasolina 95 más barata de la península está ahora en <a href={stationPath(best95)}>{best95.brand}</a> de{' '}
+        <a href={placeOf(best95).municipalityPath}>{placeOf(best95).municipality}</a> ({priceU(best95.prices.gasolina95!, 'gasolina95')}).
+      </p>
+    )}
+
+    <h2>Cuánto gastas al mes</h2>
+    <p>
+      Si haces 1.000 km al mes con un consumo real de 6,5 l/100 km gastas unos 65 litros:
+      {national.gasolina95 && <> {eur(national.gasolina95.avg * 65)} al mes en gasolina 95</>}
+      {national.diesel && <> o {eur(national.diesel.avg * 65)} en diésel</>}. Haz tu propia cuenta con la{' '}
+      <a href="/calculadora-gasolina/">calculadora de gasolina</a>.
+    </p>
+  </article>
+
+  <AdSlot position="bottom" />
+</Base>

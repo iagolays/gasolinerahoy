@@ -1,0 +1,79 @@
+---
+// Metodología: de dónde salen los datos y cómo se calculan todas las cifras de la web.
+import Base from '../layouts/Base.astro';
+import { SITE } from '../site.config';
+import { getMunicipalities, getProvinces, getStations, getUpdatedAt } from '../lib/data';
+import { LOW_COST_BRANDS, MAJOR_BRANDS, MIN_BRAND_STATIONS } from '../lib/brands';
+import { PRICE_LIMITS } from '../../scripts/normalize';
+import { FUELS, FUEL_ORDER } from '../lib/fuels';
+import { dateTime, int, price } from '../components/util/format';
+
+const updatedAt = getUpdatedAt();
+const title = 'Metodología: cómo calculamos los precios';
+const description = `De dónde salen los precios de ${SITE.name}, cada cuánto se actualizan y cómo calculamos las medias, los rankings, los informes y el histórico.`;
+---
+<Base title={title} description={description} path="/metodologia/" breadcrumbs={[{ name: 'Metodología', path: '/metodologia/' }]}>
+  <article class="article">
+    <h1>Metodología</h1>
+    <p class="lead">Cómo obtenemos los precios y cómo calculamos cada cifra que ves en la web, para que sepas exactamente qué significan.</p>
+
+    <h2>Fuente de los datos</h2>
+    <p>
+      Todos los precios salen del <a href={SITE.dataSource.url} rel="noopener" target="_blank">Geoportal de Hidrocarburos</a> del Ministerio
+      para la Transición Ecológica y el Reto Demográfico, a través de su servicio de datos abiertos. Las gasolineras están obligadas a
+      comunicar al Ministerio sus precios cada vez que los cambian. {SITE.name} es una web independiente y no es un servicio oficial.
+    </p>
+    <p>
+      La última actualización es del {dateTime(updatedAt)} e incluye {int(getStations().length)} gasolineras en {int(getMunicipalities().length)}
+      {' '}municipios de las {getProvinces().length} provincias.
+    </p>
+
+    <h2>Cada cuánto se actualiza</h2>
+    <p>
+      Descargamos los datos del Ministerio de forma automática varias veces al día y regeneramos todas las páginas. La fecha de los datos
+      aparece en el pie de cada página. Si el servicio del Ministerio no responde, mantenemos la última descarga correcta.
+    </p>
+
+    <h2>Qué gasolineras incluimos</h2>
+    <ul>
+      <li>Solo las de <strong>venta al público</strong>. Excluimos las de venta restringida (por ejemplo, las de cooperativas o flotas, que solo venden a sus socios o clientes).</li>
+      <li>Solo los carburantes que cada gasolinera vende y publica.</li>
+      <li>
+        Descartamos los <strong>precios imposibles</strong>, que casi siempre son errores al comunicar el dato. Los límites que aplicamos son:
+        {' '}{FUEL_ORDER.map((f, i) => <>{i > 0 && '; '}{FUELS[f].label.toLowerCase()}, entre {price(PRICE_LIMITS[f].min)} y {price(PRICE_LIMITS[f].max)} {FUELS[f].unit}</>)}.
+      </li>
+      <li>Cuando el rótulo comunicado no es un nombre reconocible (un número, un nombre vacío…), la gasolinera aparece como «Gasolinera independiente».</li>
+    </ul>
+
+    <h2>Cómo calculamos las cifras</h2>
+    <ul>
+      <li><strong>Precio medio</strong>: media aritmética de los precios de todas las gasolineras del ámbito (España, provincia, municipio o marca) que venden ese carburante. Cada gasolinera cuenta lo mismo, venda mucho o poco.</li>
+      <li><strong>Mínimo y máximo</strong>: el precio más bajo y el más alto de ese ámbito.</li>
+      <li><strong>Diferencia con la media</strong>: en porcentaje o en céntimos por litro, siempre respecto a la media del ámbito que se indica.</li>
+      <li><strong>Histórico</strong>: guardamos una vez al día la <strong>mediana</strong> de España y de cada provincia (la mediana se ve menos afectada por unos pocos precios extremos).</li>
+      <li><strong>Depósito</strong>: cuando hablamos de «un depósito», usamos 50 litros salvo que se diga otra cosa.</li>
+    </ul>
+
+    <h2>Península, Baleares, Canarias, Ceuta y Melilla</h2>
+    <p>
+      Canarias, Ceuta y Melilla tienen impuestos propios sobre los carburantes, más bajos que en la península, y Baleares tiene costes de
+      transporte diferentes. Para que las comparaciones sean justas, los rankings «de la península» y la mayoría de los informes solo usan
+      gasolineras peninsulares. Te lo explicamos en <a href="/guias/impuestos-de-la-gasolina/">los impuestos de la gasolina</a>.
+    </p>
+
+    <h2>Marcas</h2>
+    <p>
+      Tienen página propia las marcas con al menos {MIN_BRAND_STATIONS} gasolineras. En el informe de
+      {' '}<a href="/informes/low-cost-vs-tradicionales/">low cost frente a tradicionales</a> consideramos low cost a {[...LOW_COST_BRANDS].join(', ')},
+      {' '}y grandes marcas a {[...MAJOR_BRANDS].join(', ')}. El resto de marcas no entra en esa comparación.
+    </p>
+
+    <h2>Límites</h2>
+    <ul>
+      <li>Los precios son los que las gasolineras comunican al Ministerio. Puede haber retrasos o errores: <strong>confirma siempre el precio en el surtidor</strong>.</li>
+      <li>Algunas gasolineras aplican descuentos (tarjetas, apps, socios) que no aparecen en los datos oficiales.</li>
+      <li>Las calculadoras dan estimaciones a partir de los datos que introduces.</li>
+    </ul>
+    <p>¿Has visto un dato que no cuadra? Escríbenos desde la página <a href="/acerca/">Acerca de</a>.</p>
+  </article>
+</Base>

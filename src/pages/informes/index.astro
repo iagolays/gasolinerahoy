@@ -1,0 +1,40 @@
+---
+// Índice de informes.
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
+import { itemListLd } from '../../components/seo/schema';
+import { REPORTS, TOOLS } from '../../lib/reports';
+
+const title = 'Informes sobre el precio de la gasolina en España';
+const description = 'Informes con los precios oficiales de hoy: ranking de provincias, low cost frente a grandes marcas, cuánto cuesta llenar el depósito y marcas más baratas.';
+---
+<Base
+  title={title}
+  description={description}
+  path="/informes/"
+  breadcrumbs={[{ name: 'Informes', path: '/informes/' }]}
+  jsonLd={itemListLd(title, REPORTS.map((r) => ({ name: r.title, path: r.path })))}
+>
+  <header class="page-head">
+    <h1>Informes del precio de la gasolina</h1>
+    <p class="lead">Análisis hechos con los precios oficiales de todas las gasolineras de España. Se recalculan cada hora.</p>
+  </header>
+
+  <AdSlot position="top" />
+
+  <section class="section">
+    <ul class="card-list">
+      {REPORTS.map((r) => <li><a href={r.path}><strong>{r.title}</strong><span>{r.summary}</span></a></li>)}
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="herramientas">
+    <h2 id="herramientas">Herramientas</h2>
+    <ul class="card-list">
+      {TOOLS.map((r) => <li><a href={r.path}><strong>{r.title}</strong><span>{r.summary}</span></a></li>)}
+    </ul>
+    <p class="small muted">¿Quieres entender los datos? Mira nuestras <a href="/guias/">guías</a> y la <a href="/metodologia/">metodología</a>.</p>
+  </section>
+
+  <AdSlot position="bottom" />
+</Base>

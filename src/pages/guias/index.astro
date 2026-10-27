@@ -1,0 +1,48 @@
+---
+// Índice de guías e informes.
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
+import { itemListLd } from '../../components/seo/schema';
+import { REPORTS } from '../../lib/reports';
+
+const guias = (await getCollection('guias')).sort((a, b) => a.data.order - b.data.order || a.data.title.localeCompare(b.data.title, 'es'));
+const title = 'Guías para ahorrar en gasolina y diésel';
+const description = 'Guías prácticas para gastar menos en carburante: cuándo y dónde repostar, gasolina 95 o 98, low cost, impuestos, GLP, AdBlue y más.';
+---
+<Base
+  title={title}
+  description={description}
+  path="/guias/"
+  breadcrumbs={[{ name: 'Guías', path: '/guias/' }]}
+  jsonLd={itemListLd(title, guias.map((g) => ({ name: g.data.title, path: `/guias/${g.id}/` })))}
+>
+  <header class="page-head">
+    <h1>Guías para ahorrar en carburante</h1>
+    <p class="lead">Todo lo que conviene saber para pagar menos cada vez que repostas, explicado sin rodeos.</p>
+  </header>
+
+  <AdSlot position="top" />
+
+  <section class="section">
+    <ul class="card-list">
+      {guias.map((g) => (
+        <li><a href={`/guias/${g.id}/`}><strong>{g.data.title}</strong><span>{g.data.description}</span></a></li>
+      ))}
+    </ul>
+  </section>
+
+  <AdSlot position="inline" />
+
+  <section class="section" aria-labelledby="informes">
+    <h2 id="informes">Informes con los datos de hoy</h2>
+    <p class="section-sub">Se recalculan cada hora con los precios oficiales.</p>
+    <ul class="card-list">
+      {REPORTS.map((r) => (
+        <li><a href={r.path}><strong>{r.title}</strong><span>{r.summary}</span></a></li>
+      ))}
+    </ul>
+  </section>
+
+  <AdSlot position="bottom" />
+</Base>

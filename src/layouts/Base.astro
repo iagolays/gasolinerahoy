@@ -82,6 +82,9 @@ const year = updatedAt.getFullYear();
         </a>
         <nav aria-label="Principal" class="main-nav">
           <a href="/#provincias">Provincias</a>
+          <a href="/marcas/" class="nav-extra">Marcas</a>
+          <a href="/calculadora-gasolina/" class="nav-extra">Calculadora</a>
+          <a href="/guias/" class="nav-extra">Guías</a>
           <a href="/cerca/" class="nav-near">
             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
             Cerca de mí
@@ -123,8 +126,17 @@ const year = updatedAt.getFullYear();
             (Geoportal de Hidrocarburos), reutilizados conforme a la Ley 37/2007. {SITE.name} es una web independiente y <strong>no es un servicio oficial</strong>.
           </p>
         </div>
+        <nav aria-label="Contenido" class="footer-legal small">
+          <a href="/guias/">Guías</a>
+          <a href="/informes/">Informes</a>
+          <a href="/marcas/">Marcas</a>
+          <a href="/calculadora-gasolina/">Calculadora de gasolina</a>
+          <a href="/compensa-desviarse/">¿Compensa desviarse?</a>
+          <a href="/informes/precio-por-provincia/">Precio por provincia</a>
+        </nav>
         <nav aria-label="Legal" class="footer-legal small">
           <a href="/acerca/">Acerca de</a>
+          <a href="/metodologia/">Metodología</a>
           <a href="/aviso-legal/">Aviso legal</a>
           <a href="/privacidad/">Privacidad</a>
           <a href="/cookies/">Cookies</a>
@@ -192,6 +204,11 @@ const year = updatedAt.getFullYear();
   .main-nav .nav-near {
     background: var(--accent-soft);
     color: var(--good);
+  }
+  @media (max-width: 860px) {
+    .main-nav .nav-extra {
+      display: none;
+    }
   }
   @media (max-width: 420px) {
     .main-nav a:not(.nav-near) {

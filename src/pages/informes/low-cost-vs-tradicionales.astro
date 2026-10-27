@@ -1,0 +1,119 @@
+---
+// Informe: precio de las gasolineras low cost frente a las grandes marcas, en la península y por provincia.
+import Base from '../../layouts/Base.astro';
+import AdSlot from '../../components/ads/AdSlot.astro';
+import FuelTabs from '../../components/FuelTabs.astro';
+import DiffBars from '../../components/DiffBars.astro';
+import { brandPath, getBrands, LOW_COST_BRANDS, MAJOR_BRANDS } from '../../lib/brands';
+import { getProvinces, getStations, getUpdatedAt, isPeninsular, provincePath, statsFor } from '../../lib/data';
+import type { FuelKey, Station } from '../../lib/types';
+import { date, int, pct, pctDiff, price } from '../../components/util/format';
+import { cents, fuelName, priceU } from '../../components/util/texts';
+
+const fuels: FuelKey[] = ['gasolina95', 'diesel'];
+const pen = getStations().filter((s) => isPeninsular(s.provinceId));
+const low = pen.filter((s) => LOW_COST_BRANDS.has(s.brand));
+const major = pen.filter((s) => MAJOR_BRANDS.has(s.brand));
+const lowStats = statsFor(low);
+const majorStats = statsFor(major);
+const updatedAt = getUpdatedAt();
+
+// Gasto anual de referencia: 15.000 km al año con un consumo real de 6,5 l/100 km ≈ 975 litros.
+const LITERS_YEAR = 975;
+
+const byProvince = getProvinces()
+  .filter((p) => isPeninsular(p.id))
+  .map((p) => {
+    const inProv = (list: Station[]) => list.filter((s) => s.provinceId === p.id);
+    return { p, low: statsFor(inProv(low)), major: statsFor(inProv(major)) };
+  });
+
+function provDiffs(f: FuelKey) {
+  return byProvince
+    .filter((x) => x.low[f] && x.major[f] && x.low[f]!.count >= 2 && x.major[f]!.count >= 3)
+    .map((x) => ({ name: x.p.name, path: provincePath(x.p), diff: x.low[f]!.avg - x.major[f]!.avg }))
+    .sort((a, b) => a.diff - b.diff);
+}
+
+const lowBrands = getBrands().filter((b) => b.kind === 'lowcost');
+const majorBrands = getBrands().filter((b) => b.kind === 'major');
+
+const d95 = lowStats.gasolina95 && majorStats.gasolina95 ? majorStats.gasolina95.avg - lowStats.gasolina95.avg : 0;
+const dD = lowStats.diesel && majorStats.diesel ? majorStats.diesel.avg - lowStats.diesel.avg : 0;
+
+const title = '¿Cuánto más barata es una gasolinera low cost? Datos de hoy';
+const description = `Hoy la gasolina 95 de las low cost cuesta ${cents(d95, 0)} menos por litro que en las grandes marcas (${int(low.length)} frente a ${int(major.length)} gasolineras de la península).`;
+---
+<Base
+  title={title}
+  description={description}
+  path="/informes/low-cost-vs-tradicionales/"
+  fuels={fuels}
+  ogType="article"
+  breadcrumbs={[{ name: 'Informes', path: '/informes/' }, { name: 'Low cost vs. tradicionales', path: '/informes/low-cost-vs-tradicionales/' }]}
+>
+  <article class="article">
+    <h1>Gasolineras low cost frente a las grandes marcas</h1>
+    <p class="article-meta">Datos del {date(updatedAt)}, solo península. Se actualiza cada hora.</p>
+    <p class="lead">
+      Comparamos el precio medio de {int(low.length)} gasolineras low cost con el de {int(major.length)} gasolineras de las grandes
+      operadoras para saber cuánto te ahorras de verdad.
+    </p>
+
+    <AdSlot position="top" />
+
+    <h2>Resultado</h2>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>Carburante</th><th class="n">Low cost</th><th class="n">Grandes marcas</th><th class="n">Diferencia</th><th class="n">Al año*</th></tr></thead>
+        <tbody>
+          {fuels.filter((f) => lowStats[f] && majorStats[f]).map((f) => {
+            const d = majorStats[f]!.avg - lowStats[f]!.avg;
+            return (
+              <tr>
+                <td>{fuelName(f)}</td>
+                <td class="n">{price(lowStats[f]!.avg)}</td>
+                <td class="n">{price(majorStats[f]!.avg)}</td>
+                <td class:list={['n', d > 0 ? 'good' : 'bad']}>{(d * 100).toLocaleString('es-ES', { maximumFractionDigits: 1 })} cts/l ({pct(pctDiff(lowStats[f]!.avg, majorStats[f]!.avg), true)})</td>
+                <td class="n">{Math.round(d * LITERS_YEAR).toLocaleString('es-ES')} €</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted">* Para 15.000 km al año con un consumo real de 6,5 l/100 km (unos {int(LITERS_YEAR)} litros).</p>
+    {d95 > 0 && (
+      <p>
+        Repostar siempre en una low cost en lugar de en una gasolinera de las grandes marcas supone hoy unos {cents(d95, 0)} menos por litro
+        de gasolina 95{dD > 0 && <> y {cents(dD, 0)} en diésel</>}. Con un depósito de 50 litros son unos{' '}
+        {(d95 * 50).toLocaleString('es-ES', { maximumFractionDigits: 0 })} € cada vez que llenas.
+      </p>
+    )}
+    <p>
+      La diferencia no se debe a la calidad: todos los carburantes que se venden en España tienen que cumplir las mismas especificaciones
+      técnicas, y la mayoría sale de las mismas refinerías y depósitos. Las low cost ahorran en personal, en tienda y en publicidad. Lo
+      contamos con más detalle en <a href="/guias/gasolineras-low-cost-calidad/">¿Es peor la gasolina low cost?</a>
+    </p>
+
+    <h2>Por provincia</h2>
+    <p class="section-sub">Céntimos por litro que cuesta de menos (verde) la media de las low cost respecto a la de las grandes marcas.</p>
+    <FuelTabs fuels={fuels} sticky />
+    {fuels.map((f) => (
+      <div data-fuel-pane={f}>
+        <DiffBars label={`Diferencia low cost frente a grandes marcas, ${fuelName(f)}`} items={provDiffs(f)} />
+      </div>
+    ))}
+    <p class="small muted">Solo provincias con al menos 2 low cost y 3 gasolineras de grandes marcas.</p>
+
+    <h2>Qué marcas hemos contado</h2>
+    <p>
+      <strong>Low cost:</strong> {lowBrands.map((b, i) => <>{i > 0 && ', '}<a href={brandPath(b)}>{b.name}</a></>)}.
+      {' '}<strong>Grandes marcas:</strong> {majorBrands.map((b, i) => <>{i > 0 && ', '}<a href={brandPath(b)}>{b.name}</a></>)}.
+      Las demás marcas (regionales o independientes) no entran en la comparación. Ver el <a href="/marcas/">ranking de todas las marcas</a>.
+    </p>
+    <p class="small muted">Precio medio en {priceU(lowStats.gasolina95?.avg ?? 0, 'gasolina95')} y {priceU(majorStats.gasolina95?.avg ?? 0, 'gasolina95')} (gasolina 95). Cómo calculamos: <a href="/metodologia/">metodología</a>.</p>
+  </article>
+
+  <AdSlot position="bottom" />
+</Base>

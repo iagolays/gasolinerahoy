@@ -3,6 +3,7 @@
 import type { GetStaticPaths } from 'astro';
 import Base from '../../../layouts/Base.astro';
 import AdSlot from '../../../components/ads/AdSlot.astro';
+import ToolsStrip from '../../../components/ToolsStrip.astro';
 import FuelTabs from '../../../components/FuelTabs.astro';
 import StatsGrid from '../../../components/StatsGrid.astro';
 import StationTable from '../../../components/StationTable.astro';
@@ -170,6 +171,8 @@ const path = municipalityPath(muni);
       <p class="small" style="margin-top:14px"><a href={provincePath(province)}>Ver todos los municipios de {pName} →</a></p>
     </section>
   )}
+
+  <ToolsStrip />
 
   <AdSlot position="bottom" />
 </Base>

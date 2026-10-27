@@ -1,0 +1,157 @@
+---
+// Calculadora de gasolina: coste de un viaje y de llenar el depósito, con el precio medio de hoy
+// (de España o de una provincia) precargado y editable. Todo se calcula en el navegador.
+import Base from '../layouts/Base.astro';
+import AdSlot from '../components/ads/AdSlot.astro';
+import { getProvinces, getUpdatedAt, nationalStats, provinceStats } from '../lib/data';
+import { FUELS } from '../lib/fuels';
+import type { FuelKey } from '../lib/types';
+import { dateTime, price } from '../components/util/format';
+import { TOOLS } from '../lib/reports';
+
+const FUEL_KEYS: FuelKey[] = ['gasolina95', 'diesel', 'gasolina98', 'dieselPremium', 'glp'];
+const national = nationalStats();
+const fuels = FUEL_KEYS.filter((f) => national[f]);
+// Medias que usa el script: { "": {g95: 1.741, ...}, "28": {...}, ... } ("" = España)
+const avgs: Record<string, Partial<Record<FuelKey, number>>> = { '': {} };
+for (const f of fuels) avgs['']![f] = national[f]!.avg;
+const provinces = getProvinces();
+for (const p of provinces) {
+  const s = provinceStats(p.id);
+  avgs[p.id] = Object.fromEntries(fuels.filter((f) => s[f]).map((f) => [f, s[f]!.avg]));
+}
+const updatedAt = getUpdatedAt();
+const g95 = national.gasolina95?.avg ?? 1.7;
+
+const title = 'Calculadora de gasolina: coste de un viaje y del depósito';
+const description = 'Calcula cuánto cuesta un viaje en gasolina o diésel con el precio de hoy en tu provincia: coste total, por persona y por kilómetro, y cuánto sale llenar el depósito.';
+---
+<Base
+  title={title}
+  description={description}
+  path="/calculadora-gasolina/"
+  breadcrumbs={[{ name: 'Calculadora de gasolina', path: '/calculadora-gasolina/' }]}
+  jsonLd={{
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Calculadora de gasolina',
+    applicationCategory: 'UtilitiesApplication',
+    operatingSystem: 'Any',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+  }}
+>
+  <header class="page-head">
+    <h1>Calculadora de gasolina</h1>
+    <p class="lead">Cuánto te cuesta un viaje y cuánto sale llenar el depósito, con el precio medio de hoy ({dateTime(updatedAt)}) de España o de tu provincia.</p>
+  </header>
+
+  <AdSlot position="top" />
+
+  <form class="tool card" id="calc" data-avgs={JSON.stringify(avgs)} onsubmit="return false">
+    <div class="tool-grid">
+      <div class="field">
+        <label for="c-fuel">Carburante</label>
+        <select id="c-fuel" name="fuel">
+          {fuels.map((f) => <option value={f}>{FUELS[f].label}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="c-prov">Precio medio de</label>
+        <select id="c-prov" name="prov">
+          <option value="">Toda España</option>
+          {provinces.map((p) => <option value={p.id}>{p.name}</option>)}
+        </select>
+      </div>
+      <div class="field">
+        <label for="c-price">Precio por litro (€)</label>
+        <input id="c-price" name="price" type="number" inputmode="decimal" step="0.001" min="0" value={g95.toFixed(3)} />
+        <span class="hint">Se rellena con la media; cámbialo si sabes el de tu gasolinera.</span>
+      </div>
+      <div class="field">
+        <label for="c-cons">Consumo (l/100 km)</label>
+        <input id="c-cons" name="cons" type="number" inputmode="decimal" step="0.1" min="0" value="6.5" />
+        <span class="hint">El real, no el del catálogo. <a href="/guias/consumo-real-vs-homologado/">Cómo medirlo</a>.</span>
+      </div>
+    </div>
+
+    <h2>Coste de un viaje</h2>
+    <div class="tool-grid">
+      <div class="field">
+        <label for="c-km">Distancia (km)</label>
+        <input id="c-km" name="km" type="number" inputmode="decimal" min="0" value="300" />
+      </div>
+      <div class="field">
+        <label for="c-pax">Personas en el coche</label>
+        <input id="c-pax" name="pax" type="number" inputmode="numeric" min="1" value="1" />
+      </div>
+      <div class="field">
+        <label for="c-tolls">Peajes (€)</label>
+        <input id="c-tolls" name="tolls" type="number" inputmode="decimal" min="0" step="0.01" value="0" />
+      </div>
+      <label class="check"><input id="c-rt" name="rt" type="checkbox" /> Ida y vuelta</label>
+    </div>
+    <div class="result" aria-live="polite">
+      <p class="result-main" id="r-trip">—</p>
+      <dl>
+        <dt>Por persona</dt><dd id="r-pax">—</dd>
+        <dt>Litros</dt><dd id="r-liters">—</dd>
+        <dt>Por kilómetro</dt><dd id="r-km">—</dd>
+        <dt>Cada 100 km</dt><dd id="r-100">—</dd>
+      </dl>
+    </div>
+
+    <h2>Llenar el depósito</h2>
+    <div class="tool-grid">
+      <div class="field">
+        <label for="c-tank">Litros que vas a echar</label>
+        <input id="c-tank" name="tank" type="number" inputmode="decimal" min="0" value="50" />
+      </div>
+      <div class="field">
+        <label for="c-month">Kilómetros al mes</label>
+        <input id="c-month" name="month" type="number" inputmode="decimal" min="0" value="1000" />
+      </div>
+    </div>
+    <div class="result" aria-live="polite">
+      <p class="result-main" id="r-tank">—</p>
+      <dl>
+        <dt>Autonomía aprox.</dt><dd id="r-range">—</dd>
+        <dt>Gasto al mes</dt><dd id="r-month">—</dd>
+        <dt>Gasto al año</dt><dd id="r-year">—</dd>
+      </dl>
+    </div>
+  </form>
+
+  <AdSlot position="inline" />
+
+  <section class="section article" aria-labelledby="como">
+    <h2 id="como">Cómo se calcula</h2>
+    <p>
+      <strong>Litros del viaje</strong> = kilómetros × consumo ÷ 100. <strong>Coste</strong> = litros × precio por litro + peajes.
+      Por ejemplo, 300 km con un coche que gasta 6,5 l/100 km son 19,5 litros; con la gasolina 95 a la media de hoy
+      ({price(g95)} €/l) cuestan {(19.5 * g95).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €.
+    </p>
+    <p>
+      El precio medio cambia mucho de una gasolinera a otra: en la misma ciudad puede haber 20 céntimos de diferencia. Para un cálculo más
+      exacto, busca el precio de la gasolinera donde vas a repostar en <a href="/cerca/">gasolineras cerca de mí</a> y escríbelo en el
+      campo de precio.
+    </p>
+    <p>
+      ¿Hay una más barata un poco más lejos? Calcula si <a href="/compensa-desviarse/">compensa desviarse</a>. Y si quieres gastar menos,
+      mira <a href="/guias/como-ahorrar-gasolina/">cómo ahorrar gasolina</a>.
+    </p>
+  </section>
+
+  <section class="section" aria-labelledby="mas">
+    <h2 id="mas">Más herramientas</h2>
+    <ul class="card-list">
+      {TOOLS.filter((t) => t.path !== '/calculadora-gasolina/').map((t) => <li><a href={t.path}><strong>{t.title}</strong><span>{t.summary}</span></a></li>)}
+    </ul>
+  </section>
+
+  <AdSlot position="bottom" />
+</Base>
+
+<script>
+  import { initCalculator } from '../components/scripts/calc';
+  initCalculator();
+</script>
