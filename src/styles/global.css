@@ -6,6 +6,7 @@
   --bg: #f5f6f2;
   --surface: #ffffff;
   --surface-2: #eef0ea;
+  --band: #e9ece4;            /* franja de fondo para alternar secciones */
   --ink: #14181f;
   --muted: #545d6b;
   --border: #dde1d8;
@@ -34,6 +35,7 @@
     --bg: #0e1114;
     --surface: #161a1f;
     --surface-2: #1d2228;
+    --band: #13171c;
     --ink: #e9ecef;
     --muted: #a1aab5;
     --border: #2a3038;
@@ -148,11 +150,32 @@ p {
 main {
   padding-bottom: 48px;
 }
+/* Cada sección es una franja; las pares llevan fondo a todo el ancho para separarlas de un vistazo. */
 .section {
-  margin-top: 36px;
+  padding-block: 36px;
+}
+main > .section:nth-of-type(even) {
+  background: var(--band);
+  box-shadow: 0 0 0 100vmax var(--band);
+  clip-path: inset(0 -100vmax);
 }
 .section > h2 {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   margin-bottom: 0.35em;
+}
+.section > h2::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 1.05em;
+  margin-top: 0.08em;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.section > .section-sub {
+  padding-left: 15px;
 }
 .section-sub {
   color: var(--muted);
@@ -463,8 +486,14 @@ html[data-fuel='adblue'] [data-fuel-col='adblue'] {
 .page-head {
   padding: 18px 0 4px;
 }
+/* Resumen en texto: tarjeta con borde de color para que no sea un muro de párrafos. */
 .summary {
   margin-top: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px 4px;
 }
 
 /* ---------- Ranking de gasolineras (Ranking.astro y la lista de /cerca/) ---------- */
