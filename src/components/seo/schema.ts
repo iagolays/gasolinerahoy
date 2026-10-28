@@ -158,6 +158,12 @@ export function datasetLd(updatedAt?: string): Ld {
     ...(updatedAt ? { dateModified: updatedAt } : {}),
     spatialCoverage: { '@type': 'Place', name: 'España' },
     isBasedOn: SITE.dataSource.url,
+    // Google pide `license`: los datos son información del sector público reutilizada (ver /aviso-legal/).
+    license: {
+      '@type': 'CreativeWork',
+      name: 'Ley 37/2007, de 16 de noviembre, sobre reutilización de la información del sector público',
+      url: 'https://www.boe.es/buscar/act.php?id=BOE-A-2007-20555',
+    },
     creator: { '@type': 'Organization', name: SITE.dataSource.name, url: SITE.dataSource.url },
   };
 }
