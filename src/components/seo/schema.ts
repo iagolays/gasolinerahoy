@@ -46,7 +46,9 @@ export function gasStationLd(station: Station, ctx: GasStationLdContext = {}): L
       const fuel = FUEL_NAMES[key];
       const offer: Ld = {
         '@type': 'Offer',
-        itemOffered: { '@type': 'Product', name: fuel.name },
+        // Sin itemOffered de tipo Product: Google lo toma como fragmento de producto y exige
+        // review/aggregateRating/offers (aviso crítico en Search Console el 29-10).
+        name: fuel.name,
         price: price!.toFixed(3),
         priceCurrency: 'EUR',
         priceSpecification: {
