@@ -1,6 +1,6 @@
 ---
 // Hueco de anuncio de AdSense (bloque adaptable).
-// - Sin SITE.adsenseClient no pinta nada (ni ocupa espacio).
+// - Sin SITE.adsenseClient o con SITE.adSlots apagado no pinta nada (ni ocupa espacio).
 // - Con cliente, el bloque tiene una altura FIJA por hueco y tamaño de pantalla (método de AdSense para
 //   "bloques adaptables con tamaño exacto"): el anuncio que llegue se ajusta a ese hueco y la página
 //   no salta (CLS = 0). Con `data-ad-format="auto"` y solo una altura mínima, AdSense puede servir un
@@ -16,7 +16,7 @@ interface Props {
 }
 
 const { position } = Astro.props;
-const client: string = SITE.adsenseClient;
+const client: string = SITE.adSlots ? SITE.adsenseClient : '';
 
 // IDs de bloque de anuncio (data-ad-slot) creados en AdSense > Anuncios > Por bloque de anuncio.
 // Si se dejan vacíos se usa el bloque sin data-ad-slot, válido con anuncios automáticos.

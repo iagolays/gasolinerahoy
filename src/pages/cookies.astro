@@ -4,7 +4,7 @@ import Base from '../layouts/Base.astro';
 import { SITE } from '../site.config';
 
 const REVISADO = '26 de octubre de 2026';
-const hayAnuncios = SITE.adsenseClient !== '';
+const hayAnuncios = (SITE.adsenseClient as string) !== '';
 ---
 <Base
   title="Política de cookies"
