@@ -28,8 +28,8 @@ const fuels = FUEL_ORDER.filter((f) => stats[f]);
         </div>
         <p class="stat-main"><Price value={s.avg} fuel={f} /><span class="visually-hidden"> de media</span></p>
         <p class="stat-range">
-          <span>Mín. <strong class="num">{price(s.min)}</strong></span>
-          <span>Máx. <strong class="num">{price(s.max)}</strong></span>
+          <span>Mín. <strong class="num">{price(s.min)}</strong></span>{' '}
+          <span>Máx. <strong class="num">{price(s.max)}</strong></span>{' '}
           <span>{int(s.count)} {s.count === 1 ? 'estación' : 'estaciones'}</span>
         </p>
       </li>

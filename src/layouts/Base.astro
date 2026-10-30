@@ -81,14 +81,27 @@ const year = updatedAt.getFullYear();
           <span class="brand-name">Gasolineras<b>Ya</b></span>
         </a>
         <nav aria-label="Principal" class="main-nav">
-          <a href="/#provincias">Provincias</a>
-          <a href="/marcas/" class="nav-extra">Marcas</a>
-          <a href="/calculadora-gasolina/" class="nav-extra">Calculadora</a>
-          <a href="/guias/" class="nav-extra">Guías</a>
+          <a href="/#provincias" class="nav-link">Provincias</a>
+          <a href="/marcas/" class="nav-link">Marcas</a>
+          <a href="/calculadora-gasolina/" class="nav-link">Calculadora</a>
+          <a href="/guias/" class="nav-link">Guías</a>
           <a href="/cerca/" class="nav-near">
             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
             Cerca de mí
           </a>
+          <details class="nav-menu">
+            <summary aria-label="Menú">
+              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+            </summary>
+            <div class="nav-panel">
+              <a href="/#provincias">Provincias</a>
+              <a href="/marcas/">Marcas</a>
+              <a href="/calculadora-gasolina/">Calculadora</a>
+              <a href="/guias/">Guías</a>
+              <a href="/informes/">Informes</a>
+              <a href="/compensa-desviarse/">¿Compensa desviarse?</a>
+            </div>
+          </details>
         </nav>
       </div>
     </header>
@@ -148,6 +161,23 @@ const year = updatedAt.getFullYear();
     <script>
       import { initFuelTabs } from '../components/scripts/fuel';
       initFuelTabs();
+
+      // Cierra el menú móvil al pulsar fuera, al pulsar Escape o al elegir un enlace.
+      const menu = document.querySelector<HTMLDetailsElement>('.nav-menu');
+      if (menu) {
+        document.addEventListener('click', (e) => {
+          if (menu.open && !menu.contains(e.target as Node)) menu.open = false;
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && menu.open) {
+            menu.open = false;
+            menu.querySelector('summary')?.focus();
+          }
+        });
+        menu.querySelectorAll('.nav-panel a').forEach((a) =>
+          a.addEventListener('click', () => (menu.open = false)),
+        );
+      }
     </script>
   </body>
 </html>
@@ -197,6 +227,7 @@ const year = updatedAt.getFullYear();
     padding: 8px 12px;
     min-height: 40px;
     border-radius: 999px;
+    white-space: nowrap;
   }
   .main-nav a:hover {
     background: var(--surface-2);
@@ -205,14 +236,73 @@ const year = updatedAt.getFullYear();
     background: var(--accent-soft);
     color: var(--good);
   }
+  .nav-menu {
+    display: none;
+    position: relative;
+  }
+  .nav-menu summary {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .nav-menu summary::-webkit-details-marker {
+    display: none;
+  }
+  .nav-menu summary:hover,
+  .nav-menu[open] summary {
+    background: var(--surface-2);
+  }
+  .nav-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    min-width: 230px;
+    display: flex;
+    flex-direction: column;
+    padding: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.15);
+  }
+  .main-nav .nav-panel a {
+    border-radius: 10px;
+    min-height: 44px;
+  }
   @media (max-width: 860px) {
-    .main-nav .nav-extra {
+    .main-nav .nav-link {
       display: none;
     }
+    .nav-menu {
+      display: block;
+    }
   }
-  @media (max-width: 420px) {
-    .main-nav a:not(.nav-near) {
+  .main-nav svg {
+    flex-shrink: 0;
+  }
+  @media (max-width: 400px) {
+    .header-inner {
+      gap: 6px;
+    }
+    .brand-name {
+      font-size: 1rem;
+    }
+    .main-nav .nav-near {
+      padding: 8px 10px;
+    }
+    .main-nav {
+      gap: 0;
+    }
+    .main-nav .nav-near svg {
       display: none;
+    }
+    .nav-menu summary {
+      width: 40px;
     }
   }
 
