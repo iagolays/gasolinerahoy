@@ -1,15 +1,20 @@
-// Despliegue en Cloudflare Workers con archivos estáticos (sin código de servidor).
+// Despliegue en Cloudflare Workers con archivos estáticos.
 // Lo usan `npx wrangler deploy` y el workflow .github/workflows/deploy.yml.
+// worker/index.ts solo sirve los archivos y, con el Cron Trigger, lanza cada hora el workflow de GitHub.
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "gasolinerasya",
 	"compatibility_date": "2026-10-19",
+	"main": "./worker/index.ts",
 	"assets": {
 		"directory": "./dist",
+		"binding": "ASSETS",
 		"html_handling": "force-trailing-slash",
 		"not_found_handling": "404-page"
 	},
 	// Dominio propio (zona gasolinerasya.es en esta cuenta de Cloudflare). La redirección www → raíz
 	// se hace con una Redirect Rule de la zona, no aquí.
+	// Minuto 17 de cada hora (UTC): lanza el workflow "Desplegar" (necesita el secret GITHUB_TOKEN).
+	"triggers": { "crons": ["17 * * * *"] },
 	"routes": [{ "pattern": "gasolinerasya.es", "custom_domain": true }]
 }

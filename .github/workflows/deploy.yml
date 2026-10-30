@@ -1,11 +1,11 @@
 # Regenera los datos y despliega en Cloudflare Workers cada hora.
+# La ejecución horaria la lanza el Cron Trigger del Worker (worker/index.ts) con workflow_dispatch:
+# el cron de GitHub se retrasaba horas. El de aquí queda solo como respaldo por si falla el del Worker.
 name: Desplegar
 
 on:
   schedule:
-    # Minuto 17 de cada hora: evita la congestión de GitHub en la hora en punto
-    # (los cron programados pueden retrasarse unos minutos).
-    - cron: '17 * * * *'
+    - cron: '47 */6 * * *'
   workflow_dispatch:
   push:
     branches: [main]
